@@ -1,0 +1,705 @@
+/*
+  ════════════════════════════════════════════════════════════════
+  KPIStyles.css — KPI Card Section
+  UtilityManager | PHASE 4B — KPI Section
+  ════════════════════════════════════════════════════════════════
+
+  TABLE OF CONTENTS
+    1.  CSS custom properties (KPI-scoped tokens)
+    2.  KPI grid layout
+    3.  Card base
+    4.  Card header (label + icon)
+    5.  Card body (value + trend + badge)
+    6.  Card sub-line
+    7.  Accent color variants (blue, teal, red, amber, purple, gray)
+    8.  Severity states (warning, danger)
+    9.  Trend indicator
+    10. Badge
+    11. Icon wrapper
+    12. Micro-animations
+    13. Skeleton loader state
+    14. Responsive overrides
+    15. Accessibility (focus, reduced-motion)
+
+  Design language:
+    • Inherits sidebar/topbar tokens from Dashboard.css via :root
+    • Adds KPI-specific tokens prefixed --kpi-*
+    • Each accent color has a palette: bg / border / icon-bg / icon-color / text
+    • Severity states layer on top of accent with warning/danger overrides
+    • All animations respect prefers-reduced-motion
+  ════════════════════════════════════════════════════════════════
+*/
+
+
+/* ════════════════════════════════════════════════
+   1. KPI-SCOPED CUSTOM PROPERTIES
+   ════════════════════════════════════════════════ */
+:root {
+  /* ── KPI card dimensions ── */
+  --kpi-card-radius:    14px;
+  --kpi-card-padding:   20px 22px;
+  --kpi-card-gap:       10px;
+
+  /* ── KPI typography ── */
+  --kpi-label-size:     0.775rem;
+  --kpi-value-size:     1.85rem;
+  --kpi-sub-size:       0.75rem;
+  --kpi-trend-size:     0.72rem;
+  --kpi-badge-size:     0.68rem;
+
+  /* ── KPI icon chip ── */
+  --kpi-icon-size:      32px;
+  --kpi-icon-radius:    8px;
+  --kpi-icon-font:      16px;
+
+  /* ── Transition ── */
+  --kpi-ease:           cubic-bezier(0.16, 1, 0.3, 1);
+  --kpi-dur-fast:       120ms;
+  --kpi-dur-normal:     240ms;
+  --kpi-dur-slow:       400ms;
+
+  /* ── Accent palettes (light mode) ── */
+
+  /* blue — electricity */
+  --kpi-blue-bg:          #EEF4FD;
+  --kpi-blue-border:      #C5D9F5;
+  --kpi-blue-icon-bg:     #DBE9FB;
+  --kpi-blue-icon-color:  #1850A8;
+  --kpi-blue-text:        #1850A8;
+  --kpi-blue-trend-bg:    #DBEAFE;
+  --kpi-blue-trend-color: #1850A8;
+
+  /* teal — water */
+  --kpi-teal-bg:          #EBF7F3;
+  --kpi-teal-border:      #B5DDD0;
+  --kpi-teal-icon-bg:     #D5F0E9;
+  --kpi-teal-icon-color:  #0B6E56;
+  --kpi-teal-text:        #0B6E56;
+  --kpi-teal-trend-bg:    #CCFBEA;
+  --kpi-teal-trend-color: #0B6E56;
+
+  /* red — danger/overdue */
+  --kpi-red-bg:           #FEF2F2;
+  --kpi-red-border:       #FECACA;
+  --kpi-red-icon-bg:      #FEE2E2;
+  --kpi-red-icon-color:   #991B1B;
+  --kpi-red-text:         #991B1B;
+
+  /* amber — warning/reimbursement */
+  --kpi-amber-bg:         #FFFBEB;
+  --kpi-amber-border:     #FDE68A;
+  --kpi-amber-icon-bg:    #FEF3C7;
+  --kpi-amber-icon-color: #854D0E;
+  --kpi-amber-text:       #854D0E;
+
+  /* purple — anomaly */
+  --kpi-purple-bg:          #F5F3FF;
+  --kpi-purple-border:      #DDD6FE;
+  --kpi-purple-icon-bg:     #EDE9FE;
+  --kpi-purple-icon-color:  #4C1D95;
+  --kpi-purple-text:        #4C1D95;
+
+  /* gray — neutral */
+  --kpi-gray-bg:          #F8F7F4;
+  --kpi-gray-border:      #E0DDD7;
+  --kpi-gray-icon-bg:     #EEECE8;
+  --kpi-gray-icon-color:  #4A4845;
+  --kpi-gray-text:        #4A4845;
+
+  /* ── Severity overlays ── */
+  --kpi-warning-stripe:   repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 6px,
+    rgba(217, 119, 6, 0.04) 6px,
+    rgba(217, 119, 6, 0.04) 12px
+  );
+  --kpi-danger-pulse-color: rgba(220, 38, 38, 0.08);
+}
+
+
+/* ════════════════════════════════════════════════
+   2. KPI GRID LAYOUT
+   ════════════════════════════════════════════════ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+}
+
+/*
+  Override Dashboard.css .kpi-grid if it sets repeat(4, 1fr):
+  Phase 4B uses 6 cards in a 3-column grid (2 rows of 3).
+  If the dashboard should show 3×2, keep the selector below.
+  For 2×3 (2 columns, 3 rows), change to repeat(2, 1fr).
+*/
+
+
+/* ════════════════════════════════════════════════
+   3. CARD BASE
+   ════════════════════════════════════════════════ */
+.kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kpi-card-gap);
+  padding: var(--kpi-card-padding);
+  background: var(--bg-surface, #FFFFFF);
+  border: 1px solid var(--border, #E5E3DF);
+  border-radius: var(--kpi-card-radius);
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  transition:
+    transform      var(--kpi-dur-normal) var(--kpi-ease),
+    box-shadow     var(--kpi-dur-normal) var(--kpi-ease),
+    border-color   var(--kpi-dur-normal) var(--kpi-ease);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04);
+}
+
+.kpi-card:focus-within {
+  outline: 2px solid var(--accent, #2563EB);
+  outline-offset: 2px;
+}
+
+/* Entry animation — stagger set in HTML via style attr */
+.kpi-card {
+  animation: kpiCardEnter var(--kpi-dur-slow) var(--kpi-ease) both;
+}
+
+/* Stagger siblings via nth-child */
+.kpi-grid > div:nth-child(1) .kpi-card { animation-delay: 0.05s; }
+.kpi-grid > div:nth-child(2) .kpi-card { animation-delay: 0.10s; }
+.kpi-grid > div:nth-child(3) .kpi-card { animation-delay: 0.15s; }
+.kpi-grid > div:nth-child(4) .kpi-card { animation-delay: 0.20s; }
+.kpi-grid > div:nth-child(5) .kpi-card { animation-delay: 0.25s; }
+.kpi-grid > div:nth-child(6) .kpi-card { animation-delay: 0.30s; }
+
+
+/* ════════════════════════════════════════════════
+   4. CARD HEADER
+   ════════════════════════════════════════════════ */
+.kpi-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kpi-card__label {
+  font-size: var(--kpi-label-size);
+  font-weight: 500;
+  color: var(--text-muted, #9CA3AF);
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  flex: 1;
+  min-width: 0;
+}
+
+
+/* ════════════════════════════════════════════════
+   5. CARD BODY (value + trend + badge)
+   ════════════════════════════════════════════════ */
+.kpi-card__body {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  row-gap: 4px;
+}
+
+.kpi-card__value {
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: var(--kpi-value-size);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--text-primary, #111827);
+  line-height: 1;
+  white-space: nowrap;
+  transition: color var(--kpi-dur-normal);
+  /* Prevent layout shift during counter animation */
+  min-width: 4ch;
+}
+
+
+/* ════════════════════════════════════════════════
+   6. CARD SUB-LINE
+   ════════════════════════════════════════════════ */
+.kpi-card__sub {
+  font-size: var(--kpi-sub-size);
+  color: var(--text-muted, #9CA3AF);
+  line-height: 1.45;
+  margin-top: auto;
+  /* Allow long sub-lines to wrap gracefully */
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+
+/* ════════════════════════════════════════════════
+   7. ACCENT COLOR VARIANTS
+   ════════════════════════════════════════════════ */
+
+/* ── Blue (electricity) ── */
+.kpi-card--blue {
+  background: var(--kpi-blue-bg);
+  border-color: var(--kpi-blue-border);
+}
+.kpi-card--blue .kpi-card__value { color: var(--kpi-blue-text); }
+
+/* ── Teal (water) ── */
+.kpi-card--teal {
+  background: var(--kpi-teal-bg);
+  border-color: var(--kpi-teal-border);
+}
+.kpi-card--teal .kpi-card__value { color: var(--kpi-teal-text); }
+
+/* ── Red (overdue/danger) ── */
+.kpi-card--red {
+  background: var(--kpi-red-bg);
+  border-color: var(--kpi-red-border);
+}
+.kpi-card--red .kpi-card__value { color: var(--kpi-red-text); }
+
+/* ── Amber (warning/reimbursement) ── */
+.kpi-card--amber {
+  background: var(--kpi-amber-bg);
+  border-color: var(--kpi-amber-border);
+}
+.kpi-card--amber .kpi-card__value { color: var(--kpi-amber-text); }
+
+/* ── Purple (anomaly) ── */
+.kpi-card--purple {
+  background: var(--kpi-purple-bg);
+  border-color: var(--kpi-purple-border);
+}
+.kpi-card--purple .kpi-card__value { color: var(--kpi-purple-text); }
+
+/* ── Gray (neutral) ── */
+.kpi-card--gray {
+  background: var(--kpi-gray-bg);
+  border-color: var(--kpi-gray-border);
+}
+.kpi-card--gray .kpi-card__value { color: var(--kpi-gray-text); }
+
+
+/* ════════════════════════════════════════════════
+   8. SEVERITY STATES
+   Layered on top of accent colors.
+   warning → subtle stripe + amber border accent
+   danger  → pulsing border + left accent line
+   ════════════════════════════════════════════════ */
+
+/* ── Warning ── */
+.kpi-card--warning {
+  border-color: #FCD34D;
+  background-image: var(--kpi-warning-stripe);
+}
+
+.kpi-card--warning::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: #D97706;
+  border-radius: 14px 0 0 14px;
+}
+
+/* ── Danger ── */
+.kpi-card--danger {
+  border-color: #FCA5A5;
+  animation:
+    kpiCardEnter    var(--kpi-dur-slow) var(--kpi-ease) both,
+    kpiDangerPulse  2.4s ease-in-out infinite;
+}
+
+.kpi-card--danger::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: #DC2626;
+  border-radius: 14px 0 0 14px;
+}
+
+/* Pause pulse on hover to let user read */
+.kpi-card--danger:hover {
+  animation-play-state: paused;
+}
+
+
+/* ════════════════════════════════════════════════
+   9. TREND INDICATOR
+   ════════════════════════════════════════════════ */
+.kpi-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 100px;
+  font-size: var(--kpi-trend-size);
+  font-weight: 500;
+  font-family: 'DM Mono', ui-monospace, monospace;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.kpi-trend i {
+  font-size: 12px;
+}
+
+/* Down = good (spending less) */
+.kpi-trend--down {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+/* Up = neutral (more spend) */
+.kpi-trend--up {
+  background: #FEF9C3;
+  color: #713F12;
+}
+
+/* Warning trend */
+.kpi-trend--warning {
+  background: #FEF3C7;
+  color: #854D0E;
+}
+
+/* Danger trend */
+.kpi-trend--danger {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+
+/* ════════════════════════════════════════════════
+   10. BADGE
+   ════════════════════════════════════════════════ */
+.kpi-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: var(--kpi-badge-size);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.kpi-badge--danger {
+  background: #FEE2E2;
+  color: #7F1D1D;
+  border: 1px solid #FECACA;
+}
+
+.kpi-badge--warning {
+  background: #FEF3C7;
+  color: #713F12;
+  border: 1px solid #FDE68A;
+}
+
+.kpi-badge--info {
+  background: #DBEAFE;
+  color: #1E3A5F;
+  border: 1px solid #BFDBFE;
+}
+
+
+/* ════════════════════════════════════════════════
+   11. ICON WRAPPER
+   ════════════════════════════════════════════════ */
+.kpi-card__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--kpi-icon-size);
+  height: var(--kpi-icon-size);
+  border-radius: var(--kpi-icon-radius);
+  flex-shrink: 0;
+  transition: transform var(--kpi-dur-normal) var(--kpi-ease);
+}
+
+.kpi-card__icon-wrap i {
+  font-size: var(--kpi-icon-font);
+}
+
+.kpi-card:hover .kpi-card__icon-wrap {
+  transform: scale(1.08);
+}
+
+/* Icon color per accent */
+.kpi-icon--blue   { background: var(--kpi-blue-icon-bg);   color: var(--kpi-blue-icon-color); }
+.kpi-icon--teal   { background: var(--kpi-teal-icon-bg);   color: var(--kpi-teal-icon-color); }
+.kpi-icon--red    { background: var(--kpi-red-icon-bg);    color: var(--kpi-red-icon-color); }
+.kpi-icon--amber  { background: var(--kpi-amber-icon-bg);  color: var(--kpi-amber-icon-color); }
+.kpi-icon--purple { background: var(--kpi-purple-icon-bg); color: var(--kpi-purple-icon-color); }
+.kpi-icon--gray   { background: var(--kpi-gray-icon-bg);   color: var(--kpi-gray-icon-color); }
+
+
+/* ════════════════════════════════════════════════
+   12. MICRO-ANIMATIONS
+   ════════════════════════════════════════════════ */
+
+@keyframes kpiCardEnter {
+  from {
+    opacity:   0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity:   1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kpiDangerPulse {
+  0%, 100% { border-color: #FCA5A5; }
+  50%       { border-color: #DC2626; }
+}
+
+/* Value update flash (applied via JS when value changes) */
+.kpi-card__value--flash {
+  animation: kpiValueFlash 0.5s var(--kpi-ease);
+}
+
+@keyframes kpiValueFlash {
+  0%   { opacity: 0.4; transform: scale(0.96); }
+  60%  { opacity: 1;   transform: scale(1.02); }
+  100% { opacity: 1;   transform: scale(1); }
+}
+
+
+/* ════════════════════════════════════════════════
+   13. SKELETON LOADER STATE
+   Shown while data is fetching.
+   Apply .kpi-card--skeleton to the card article.
+   ════════════════════════════════════════════════ */
+.kpi-card--skeleton {
+  pointer-events: none;
+  background: var(--bg-surface, #FFF) !important;
+  border-color: var(--border, #E5E3DF) !important;
+  animation: kpiCardEnter var(--kpi-dur-slow) var(--kpi-ease) both;
+}
+
+.kpi-card--skeleton::before { display: none; }
+
+.kpi-skeleton-bar {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    var(--border-light, #F0EEE9) 0%,
+    var(--border, #E5E3DF) 50%,
+    var(--border-light, #F0EEE9) 100%
+  );
+  background-size: 200% 100%;
+  animation: kpiShimmer 1.6s ease infinite;
+}
+
+.kpi-skeleton-value {
+  height: 28px;
+  width: 55%;
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    var(--border-light, #F0EEE9) 0%,
+    var(--border, #E5E3DF) 50%,
+    var(--border-light, #F0EEE9) 100%
+  );
+  background-size: 200% 100%;
+  animation: kpiShimmer 1.6s ease infinite;
+}
+
+.kpi-skeleton-icon {
+  width: var(--kpi-icon-size);
+  height: var(--kpi-icon-size);
+  border-radius: var(--kpi-icon-radius);
+  background: linear-gradient(90deg,
+    var(--border-light, #F0EEE9) 0%,
+    var(--border, #E5E3DF) 50%,
+    var(--border-light, #F0EEE9) 100%
+  );
+  background-size: 200% 100%;
+  animation: kpiShimmer 1.6s ease infinite;
+  flex-shrink: 0;
+}
+
+/* Stagger skeleton shimmer */
+.kpi-grid > div:nth-child(2) .kpi-skeleton-bar,
+.kpi-grid > div:nth-child(2) .kpi-skeleton-value,
+.kpi-grid > div:nth-child(2) .kpi-skeleton-icon { animation-delay: 0.15s; }
+
+.kpi-grid > div:nth-child(3) .kpi-skeleton-bar,
+.kpi-grid > div:nth-child(3) .kpi-skeleton-value,
+.kpi-grid > div:nth-child(3) .kpi-skeleton-icon { animation-delay: 0.30s; }
+
+.kpi-grid > div:nth-child(4) .kpi-skeleton-bar,
+.kpi-grid > div:nth-child(4) .kpi-skeleton-value,
+.kpi-grid > div:nth-child(4) .kpi-skeleton-icon { animation-delay: 0.45s; }
+
+.kpi-grid > div:nth-child(5) .kpi-skeleton-bar,
+.kpi-grid > div:nth-child(5) .kpi-skeleton-value,
+.kpi-grid > div:nth-child(5) .kpi-skeleton-icon { animation-delay: 0.60s; }
+
+.kpi-grid > div:nth-child(6) .kpi-skeleton-bar,
+.kpi-grid > div:nth-child(6) .kpi-skeleton-value,
+.kpi-grid > div:nth-child(6) .kpi-skeleton-icon { animation-delay: 0.75s; }
+
+@keyframes kpiShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Skeleton card HTML structure (used when loading):
+<article class="kpi-card kpi-card--skeleton">
+  <header class="kpi-card__header">
+    <span class="kpi-skeleton-bar" style="width: 60%;"></span>
+    <span class="kpi-skeleton-icon"></span>
+  </header>
+  <div class="kpi-card__body">
+    <span class="kpi-skeleton-value"></span>
+  </div>
+  <span class="kpi-skeleton-bar" style="width: 45%; margin-top: 4px;"></span>
+</article>
+*/
+
+
+/* ════════════════════════════════════════════════
+   14. RESPONSIVE OVERRIDES
+   ════════════════════════════════════════════════ */
+
+/* Large desktop (≥1400px): bigger grid gap */
+@media (min-width: 1400px) {
+  .kpi-grid {
+    gap: 18px;
+  }
+  :root {
+    --kpi-card-padding: 24px 26px;
+    --kpi-value-size:   2rem;
+  }
+}
+
+/* Medium (900px–1199px): 2-column grid */
+@media (max-width: 1199px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  :root {
+    --kpi-value-size: 1.75rem;
+  }
+}
+
+/* Small tablet (768px–899px): 2-column tighter */
+@media (max-width: 899px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  :root {
+    --kpi-card-padding: 16px 18px;
+    --kpi-value-size:   1.6rem;
+  }
+}
+
+/* Mobile (≤599px): single column */
+@media (max-width: 599px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  :root {
+    --kpi-card-padding:   14px 16px;
+    --kpi-value-size:     1.5rem;
+    --kpi-label-size:     0.75rem;
+    --kpi-icon-size:      28px;
+    --kpi-icon-font:      14px;
+    --kpi-icon-radius:    7px;
+  }
+
+  /* On mobile: show cards side-by-side in pairs only if ≥360px */
+  @media (min-width: 360px) {
+    .kpi-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .kpi-card__value {
+    font-size: 1.4rem;
+  }
+
+  /* Disable hover lift on touch */
+  .kpi-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   15. ACCESSIBILITY
+   ════════════════════════════════════════════════ */
+
+/* Focus ring */
+.kpi-card:focus-visible {
+  outline: 2px solid var(--accent, #2563EB);
+  outline-offset: 3px;
+  border-radius: var(--kpi-card-radius);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .kpi-card,
+  .kpi-card--danger,
+  .kpi-card__value--flash,
+  .kpi-skeleton-bar,
+  .kpi-skeleton-value,
+  .kpi-skeleton-icon {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .kpi-card:hover {
+    transform: none;
+  }
+
+  .kpi-card:hover .kpi-card__icon-wrap {
+    transform: none;
+  }
+}
+
+/* High-contrast mode */
+@media (forced-colors: active) {
+  .kpi-card {
+    border: 2px solid ButtonText;
+  }
+  .kpi-card--warning::before,
+  .kpi-card--danger::before {
+    background: ButtonText;
+  }
+  .kpi-badge,
+  .kpi-trend {
+    border: 1px solid currentColor;
+    background: transparent;
+  }
+}
+
+/* Screen reader utility */
+.kpi-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

@@ -1,0 +1,895 @@
+<!--
+  ============================================================
+  FilterUI.html — Filter Bar Component
+  UtilityManager | PHASE 4D — Filter System
+  ============================================================
+  Drop-in filter bar for Dashboard.html.
+  Paste <filter-bar> element and include this file's
+  <style> + <script> blocks into your page.
+
+  Integration:
+    1. Include FilterService.js before this
+    2. Include this file's <style> in <head>
+    3. Place <filter-bar id="filterBar"></filter-bar>
+       below the topbar, above the KPI section
+    4. Include this file's <script> before </body>
+    5. Call FilterBar.init(FilterService) after data load
+
+  Inherits all CSS tokens from Dashboard.css.
+  Zero external dependencies.
+  ============================================================
+-->
+
+<!-- ── FILTER BAR STYLES ──────────────────────────────────── -->
+<style id="filterbar-styles">
+/* ============================================================
+   FilterBar — scoped styles
+   All tokens inherit from Dashboard.css :root
+   ============================================================ */
+
+/* ── Container ── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg-surface, #fff);
+  border-bottom: 1px solid var(--border, #E5E3DF);
+  flex-wrap: wrap;
+  position: sticky;
+  top: var(--topbar-height, 60px);
+  z-index: 20;
+  transition: box-shadow 0.2s ease;
+}
+
+.filter-bar--shadowed {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+/* ── Label ── */
+.filter-bar__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #9CA3AF);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-right: 4px;
+}
+
+/* ── Filter pills group ── */
+.filter-bar__filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Individual filter control ── */
+.filter-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── Select wrapper (for custom arrow) ── */
+.filter-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-select-wrap::after {
+  content: '';
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid var(--text-muted, #9CA3AF);
+  pointer-events: none;
+  transition: border-top-color 0.15s;
+}
+
+.filter-select-wrap:focus-within::after {
+  border-top-color: var(--accent, #2563EB);
+}
+
+/* ── Select element ── */
+.filter-select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 32px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--border, #E5E3DF);
+  border-radius: 8px;
+  background: var(--bg-root, #F5F4F1);
+  font-size: 0.8125rem;
+  font-family: var(--font-ui, sans-serif);
+  color: var(--text-secondary, #374151);
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 0;
+  transition:
+    border-color 0.15s ease,
+    background   0.15s ease,
+    box-shadow   0.15s ease,
+    color        0.15s ease;
+}
+
+.filter-select:hover {
+  border-color: var(--border-strong, #D1CFC9);
+  background: var(--bg-surface, #fff);
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--accent, #2563EB);
+  background: var(--bg-surface, #fff);
+  box-shadow: 0 0 0 3px var(--accent-muted, rgba(37,99,235,0.12));
+}
+
+/* Active (has a non-empty value) */
+.filter-select.is-active {
+  border-color: var(--accent, #2563EB);
+  background: var(--accent-light, #EFF6FF);
+  color: var(--accent, #2563EB);
+  font-weight: 500;
+}
+
+.filter-select-wrap.is-active::after {
+  border-top-color: var(--accent, #2563EB);
+}
+
+/* ── Active filter chips (inline tags below bar on mobile) ── */
+.filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px 0 10px;
+  background: var(--accent-light, #EFF6FF);
+  border: 1px solid var(--accent, #2563EB);
+  border-radius: 100px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--accent, #2563EB);
+  white-space: nowrap;
+  animation: chipEnter 0.18s cubic-bezier(0.16,1,0.3,1) both;
+  cursor: default;
+}
+
+.filter-chip__label {
+  opacity: 0.65;
+  margin-right: 1px;
+}
+
+.filter-chip__value {
+  font-weight: 600;
+}
+
+.filter-chip__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  color: var(--accent, #2563EB);
+  opacity: 0.7;
+  transition: opacity 0.12s, background 0.12s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.filter-chip__remove:hover {
+  opacity: 1;
+  background: rgba(37,99,235,0.15);
+}
+
+/* ── Right side actions ── */
+.filter-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ── Result counter badge ── */
+.filter-result-count {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  background: var(--bg-root, #F5F4F1);
+  border: 1px solid var(--border, #E5E3DF);
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  color: var(--text-muted, #9CA3AF);
+  white-space: nowrap;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.filter-result-count.has-results {
+  color: var(--text-secondary, #374151);
+}
+
+.filter-result-count.is-filtered {
+  color: var(--accent, #2563EB);
+  border-color: var(--accent, #2563EB);
+  background: var(--accent-light, #EFF6FF);
+}
+
+/* ── Reset button ── */
+.filter-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border, #E5E3DF);
+  border-radius: 8px;
+  background: transparent;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted, #9CA3AF);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.92);
+}
+
+.filter-reset-btn.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.filter-reset-btn:hover {
+  background: var(--color-overdue-bg, #FEF2F2);
+  border-color: #FECACA;
+  color: var(--color-overdue, #DC2626);
+}
+
+.filter-reset-btn:active {
+  transform: scale(0.96);
+}
+
+/* ── Copy URL button ── */
+.filter-share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border, #E5E3DF);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted, #9CA3AF);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.filter-share-btn:hover {
+  background: var(--bg-root, #F5F4F1);
+  color: var(--text-secondary, #374151);
+  border-color: var(--border-strong, #D1CFC9);
+}
+
+.filter-share-btn.copied {
+  background: var(--color-paid-bg, #F0FDF4);
+  border-color: #86EFAC;
+  color: var(--color-paid, #16A34A);
+}
+
+/* ── Loading shimmer for selects ── */
+.filter-select.is-loading {
+  pointer-events: none;
+  color: transparent;
+  background: linear-gradient(90deg,
+    var(--border-light, #F0EEE9) 0%,
+    var(--border, #E5E3DF) 50%,
+    var(--border-light, #F0EEE9) 100%
+  );
+  background-size: 200% 100%;
+  animation: filterShimmer 1.4s ease infinite;
+}
+
+/* ── Animations ── */
+@keyframes chipEnter {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes filterShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Collapsed chips row (mobile) ── */
+.filter-bar__chips-row {
+  display: none;
+  width: 100%;
+  padding: 0 0 2px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 899px) {
+  .filter-bar {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .filter-bar__label {
+    display: none;
+  }
+}
+
+@media (max-width: 599px) {
+  .filter-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+  }
+
+  .filter-bar__filters {
+    order: 1;
+    width: 100%;
+  }
+
+  .filter-bar__actions {
+    order: 2;
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .filter-select {
+    height: 30px;
+    font-size: 0.775rem;
+  }
+
+  .filter-bar__chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    order: 3;
+    padding: 0 0 4px;
+  }
+
+  /* On mobile, hide chips inline (use chips row instead) */
+  .filter-chips {
+    display: none;
+  }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .filter-chip,
+  .filter-reset-btn,
+  .filter-select {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+</style>
+
+<!-- ── FILTER BAR MARKUP ───────────────────────────────────── -->
+<!--
+  Place this element inside Dashboard.html, between topbar and .content.
+  It renders into the container with id="filterBar".
+
+  EXAMPLE placement in Dashboard.html:
+    </header>  ← close topbar
+    <div id="filterBar"></div>   ← insert here
+    <main class="content" ...>
+-->
+<div id="filterBar" class="filter-bar" role="search" aria-label="กรองข้อมูล">
+
+  <!-- Label -->
+  <span class="filter-bar__label" aria-hidden="true">กรอง</span>
+
+  <!-- Filter controls -->
+  <div class="filter-bar__filters" role="group" aria-label="ตัวกรอง">
+
+    <!-- Year filter -->
+    <div class="filter-select-wrap" id="yearWrap">
+      <select
+        id="filterYear"
+        class="filter-select"
+        aria-label="กรองตามปี"
+        data-filter-key="year"
+      >
+        <option value="">ทุกปี</option>
+      </select>
+    </div>
+
+    <!-- Month filter -->
+    <div class="filter-select-wrap" id="monthWrap">
+      <select
+        id="filterMonth"
+        class="filter-select"
+        aria-label="กรองตามเดือน"
+        data-filter-key="month"
+      >
+        <option value="">ทุกเดือน</option>
+        <option value="1">มกราคม</option>
+        <option value="2">กุมภาพันธ์</option>
+        <option value="3">มีนาคม</option>
+        <option value="4">เมษายน</option>
+        <option value="5">พฤษภาคม</option>
+        <option value="6">มิถุนายน</option>
+        <option value="7">กรกฎาคม</option>
+        <option value="8">สิงหาคม</option>
+        <option value="9">กันยายน</option>
+        <option value="10">ตุลาคม</option>
+        <option value="11">พฤศจิกายน</option>
+        <option value="12">ธันวาคม</option>
+      </select>
+    </div>
+
+    <!-- Site filter -->
+    <div class="filter-select-wrap" id="siteWrap">
+      <select
+        id="filterSite"
+        class="filter-select"
+        aria-label="กรองตามสถานที่"
+        data-filter-key="site"
+      >
+        <option value="">ทุกสถานที่</option>
+      </select>
+    </div>
+
+    <!-- Meter type filter -->
+    <div class="filter-select-wrap" id="meterTypeWrap">
+      <select
+        id="filterMeterType"
+        class="filter-select"
+        aria-label="กรองตามประเภทมิเตอร์"
+        data-filter-key="meterType"
+      >
+        <option value="">ทุกประเภท</option>
+        <option value="ELECTRICITY">⚡ ไฟฟ้า</option>
+        <option value="WATER">💧 น้ำประปา</option>
+        <option value="GAS">🔥 แก๊ส</option>
+        <option value="INTERNET">📡 อินเทอร์เน็ต</option>
+      </select>
+    </div>
+
+    <!-- Active filter chips (desktop inline) -->
+    <div class="filter-chips" id="filterChips" aria-live="polite" aria-label="ตัวกรองที่ใช้งาน"></div>
+
+  </div>
+
+  <!-- Actions -->
+  <div class="filter-bar__actions">
+    <!-- Result count -->
+    <span
+      class="filter-result-count"
+      id="filterResultCount"
+      role="status"
+      aria-live="polite"
+      aria-label="จำนวนผลลัพธ์"
+    >—</span>
+
+    <!-- Reset -->
+    <button
+      class="filter-reset-btn"
+      id="filterResetBtn"
+      aria-label="ล้างตัวกรองทั้งหมด"
+      title="ล้างตัวกรอง"
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <path d="M2 2l8 8M10 2L2 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      ล้างตัวกรอง
+    </button>
+
+    <!-- Copy URL -->
+    <button
+      class="filter-share-btn"
+      id="filterShareBtn"
+      aria-label="คัดลอก URL สำหรับแชร์"
+      title="คัดลอก URL"
+    >
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <rect x="4" y="1" width="8" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+        <path d="M2 4H1.5A1.5 1.5 0 000 5.5v7A1.5 1.5 0 001.5 14h7A1.5 1.5 0 0010 12.5V12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile chips row -->
+  <div class="filter-bar__chips-row" id="filterChipsMobile" aria-live="polite"></div>
+
+</div>
+
+<!-- ── FILTER BAR SCRIPT ───────────────────────────────────── -->
+<script>
+/**
+ * FilterBar — UI controller
+ * Bridges DOM ↔ FilterService
+ *
+ * Usage:
+ *   FilterBar.init(FilterService);
+ *   // FilterService must be initialized with data first.
+ */
+const FilterBar = (() => {
+  'use strict';
+
+  let _svc        = null;
+  let _unsub      = null;
+  let _isReady    = false;
+  let _shareTimer = null;
+
+  // ── DOM refs (populated in init) ──
+  const $ = id => document.getElementById(id);
+
+  const els = {
+    bar:            () => $('filterBar'),
+    year:           () => $('filterYear'),
+    month:          () => $('filterMonth'),
+    site:           () => $('filterSite'),
+    meterType:      () => $('filterMeterType'),
+    yearWrap:       () => $('yearWrap'),
+    monthWrap:      () => $('monthWrap'),
+    siteWrap:       () => $('siteWrap'),
+    meterTypeWrap:  () => $('meterTypeWrap'),
+    chips:          () => $('filterChips'),
+    chipsMobile:    () => $('filterChipsMobile'),
+    resultCount:    () => $('filterResultCount'),
+    resetBtn:       () => $('filterResetBtn'),
+    shareBtn:       () => $('filterShareBtn'),
+  };
+
+  // ── Label maps for chips ──
+  const MONTH_LABELS = {
+    '1':'ม.ค.','2':'ก.พ.','3':'มี.ค.','4':'เม.ย.','5':'พ.ค.','6':'มิ.ย.',
+    '7':'ก.ค.','8':'ส.ค.','9':'ก.ย.','10':'ต.ค.','11':'พ.ย.','12':'ธ.ค.'
+  };
+
+  const METER_LABELS = {
+    ELECTRICITY: '⚡ ไฟฟ้า',
+    WATER:       '💧 น้ำ',
+    GAS:         '🔥 แก๊ส',
+    INTERNET:    '📡 เน็ต',
+  };
+
+  const FILTER_LABELS = {
+    year:      'ปี',
+    month:     'เดือน',
+    site:      'สถานที่',
+    meterType: 'ประเภท',
+  };
+
+  // ── Option population ──
+
+  function _populateYears() {
+    const sel = els.year();
+    if (!sel || !_svc) return;
+    const opts = _svc.getYearOptions();
+    _repopulateSelect(sel, opts, 'ทุกปี');
+  }
+
+  function _populateSites() {
+    const sel = els.site();
+    if (!sel || !_svc) return;
+    const opts = _svc.getSiteOptions();
+    _repopulateSelect(sel, opts, 'ทุกสถานที่');
+  }
+
+  function _populateMeterTypes() {
+    const sel = els.meterType();
+    if (!sel || !_svc) return;
+    const opts = _svc.getMeterTypeOptions();
+    _repopulateSelect(sel, opts, 'ทุกประเภท');
+  }
+
+  function _repopulateSelect(selectEl, options, emptyLabel) {
+    const current = selectEl.value;
+    // Preserve current value if still valid
+    selectEl.innerHTML = `<option value="">${emptyLabel}</option>`;
+    for (const { value, label } of options) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      selectEl.appendChild(opt);
+    }
+    // Restore selection if still valid
+    if (current && [...selectEl.options].some(o => o.value === current)) {
+      selectEl.value = current;
+    }
+  }
+
+  // ── Sync DOM → FilterService ──
+
+  function _bindChangeEvents() {
+    const keys = ['year', 'month', 'site', 'meterType'];
+    const selectIds = {
+      year: 'filterYear', month: 'filterMonth',
+      site: 'filterSite', meterType: 'filterMeterType',
+    };
+
+    for (const key of keys) {
+      const sel = $(selectIds[key]);
+      if (!sel) continue;
+      sel.addEventListener('change', () => {
+        if (_svc) _svc.set(key, sel.value);
+      });
+    }
+
+    // Reset button
+    const resetBtn = els.resetBtn();
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        if (_svc) _svc.reset();
+      });
+    }
+
+    // Share / copy URL button
+    const shareBtn = els.shareBtn();
+    if (shareBtn) {
+      shareBtn.addEventListener('click', () => {
+        if (!_svc) return;
+        const url = window.location.origin + _svc.toURL();
+        navigator.clipboard?.writeText(url).then(() => {
+          shareBtn.classList.add('copied');
+          clearTimeout(_shareTimer);
+          _shareTimer = setTimeout(() => shareBtn.classList.remove('copied'), 1800);
+        }).catch(() => {
+          // Fallback: select text from a temp input
+          const inp = document.createElement('input');
+          inp.value = url;
+          document.body.appendChild(inp);
+          inp.select();
+          document.execCommand('copy');
+          document.body.removeChild(inp);
+          shareBtn.classList.add('copied');
+          clearTimeout(_shareTimer);
+          _shareTimer = setTimeout(() => shareBtn.classList.remove('copied'), 1800);
+        });
+      });
+    }
+  }
+
+  // ── Sync FilterService → DOM ──
+
+  function _onFilterChange({ filters, results, meta, activeCount, isFiltered }) {
+    // Sync select values
+    _syncSelect('filterYear',      filters.year);
+    _syncSelect('filterMonth',     filters.month);
+    _syncSelect('filterSite',      filters.site);
+    _syncSelect('filterMeterType', filters.meterType);
+
+    // Update chips
+    _renderChips(filters, meta);
+
+    // Update result count
+    _updateResultCount(results.length, isFiltered);
+
+    // Show/hide reset button
+    const resetBtn = els.resetBtn();
+    if (resetBtn) {
+      resetBtn.classList.toggle('visible', isFiltered);
+    }
+
+    // Re-populate site options when year changes
+    // (so only sites with bills in that year appear)
+    _populateSites();
+
+    // Sticky shadow when scrolled
+    const bar = els.bar();
+    if (bar) {
+      bar.classList.toggle('filter-bar--shadowed', window.scrollY > 60);
+    }
+  }
+
+  function _syncSelect(id, value) {
+    const sel = $(id);
+    if (!sel) return;
+    sel.value = value || '';
+    const wrap = sel.closest('.filter-select-wrap');
+    const hasValue = !!value;
+    sel.classList.toggle('is-active', hasValue);
+    if (wrap) wrap.classList.toggle('is-active', hasValue);
+  }
+
+  function _updateResultCount(count, isFiltered) {
+    const el = els.resultCount();
+    if (!el) return;
+    el.textContent = count.toLocaleString('th-TH') + ' รายการ';
+    el.classList.toggle('has-results', count > 0);
+    el.classList.toggle('is-filtered', isFiltered);
+  }
+
+  // ── Chips rendering ──
+
+  function _renderChips(filters, meta) {
+    const chips = _buildChipsHTML(filters, meta);
+    const chipsEl = els.chips();
+    const chipsMobileEl = els.chipsMobile();
+    if (chipsEl)       chipsEl.innerHTML       = chips;
+    if (chipsMobileEl) chipsMobileEl.innerHTML = chips;
+
+    // Bind remove buttons
+    document.querySelectorAll('[data-remove-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.removeFilter;
+        if (_svc) _svc.set(key, '');
+      });
+    });
+  }
+
+  function _buildChipsHTML(filters, meta) {
+    const chips = [];
+
+    if (filters.year) {
+      chips.push(_chipHTML('year', 'ปี', filters.year));
+    }
+
+    if (filters.month) {
+      chips.push(_chipHTML('month', 'เดือน', MONTH_LABELS[filters.month] || filters.month));
+    }
+
+    if (filters.site) {
+      // Try to get site name from options
+      const siteOpt = _svc?.getSiteOptions().find(o => o.value === filters.site);
+      const label = siteOpt ? _truncate(siteOpt.label, 18) : _truncate(filters.site, 14);
+      chips.push(_chipHTML('site', 'สถานที่', label));
+    }
+
+    if (filters.meterType) {
+      chips.push(_chipHTML('meterType', 'ประเภท', METER_LABELS[filters.meterType] || filters.meterType));
+    }
+
+    return chips.join('');
+  }
+
+  function _chipHTML(key, labelText, valueText) {
+    return `
+      <span class="filter-chip" role="status">
+        <span class="filter-chip__label">${labelText}:</span>
+        <span class="filter-chip__value">${valueText}</span>
+        <span
+          class="filter-chip__remove"
+          role="button"
+          tabindex="0"
+          aria-label="ลบตัวกรอง ${labelText}"
+          data-remove-filter="${key}"
+          onkeydown="if(event.key==='Enter'||event.key===' ')this.click()"
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+            <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </span>
+      </span>`.trim();
+  }
+
+  function _truncate(str, maxLen) {
+    return str.length > maxLen ? str.slice(0, maxLen) + '…' : str;
+  }
+
+  // ── Scroll shadow ──
+  function _bindScrollShadow() {
+    window.addEventListener('scroll', () => {
+      const bar = els.bar();
+      if (bar) bar.classList.toggle('filter-bar--shadowed', window.scrollY > 60);
+    }, { passive: true });
+  }
+
+  // ── Loading state ──
+  function _setLoading(loading) {
+    ['filterYear','filterMonth','filterSite','filterMeterType'].forEach(id => {
+      const sel = $(id);
+      if (sel) sel.classList.toggle('is-loading', loading);
+    });
+  }
+
+  // ── Public API ──
+
+  return {
+    /**
+     * Initialize FilterBar with a FilterService instance.
+     *
+     * @param {Object} filterService  — FilterService instance
+     */
+    init(filterService) {
+      if (_isReady) this.destroy();
+      _svc = filterService;
+
+      // Populate dynamic options
+      _populateYears();
+      _populateSites();
+      _populateMeterTypes();
+
+      // Bind DOM events
+      _bindChangeEvents();
+      _bindScrollShadow();
+
+      // Subscribe to FilterService changes → update UI
+      _unsub = _svc.subscribe(_onFilterChange);
+
+      _isReady = true;
+      return this;
+    },
+
+    /**
+     * Show loading state on all selects (during data fetch).
+     */
+    showLoading() {
+      _setLoading(true);
+      return this;
+    },
+
+    /**
+     * Hide loading state.
+     */
+    hideLoading() {
+      _setLoading(false);
+      return this;
+    },
+
+    /**
+     * Refresh options after data update.
+     * Call when FilterService.setData() is called.
+     */
+    refresh() {
+      _populateYears();
+      _populateSites();
+      _populateMeterTypes();
+      return this;
+    },
+
+    /**
+     * Programmatically set filter values (bypasses DOM events).
+     * Delegates to FilterService.setMany().
+     *
+     * @param {Object} filters  — partial { year, month, site, meterType }
+     */
+    setFilters(filters) {
+      if (_svc) _svc.setMany(filters);
+      return this;
+    },
+
+    /**
+     * Reset all filters.
+     */
+    reset() {
+      if (_svc) _svc.reset();
+      return this;
+    },
+
+    /**
+     * Teardown — unsubscribe and unbind.
+     */
+    destroy() {
+      if (_unsub) { _unsub(); _unsub = null; }
+      clearTimeout(_shareTimer);
+      _svc     = null;
+      _isReady = false;
+    },
+  };
+})();
+
+// Expose globally
+if (typeof window !== 'undefined') window.FilterBar = FilterBar;
+</script>

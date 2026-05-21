@@ -1,0 +1,1719 @@
+/*
+  ════════════════════════════════════════════════════════════════
+  Responsive.css — UtilityManager PHASE 4F
+  Mobile-First Responsive Optimization
+  ════════════════════════════════════════════════════════════════
+
+  SCOPE: Overrides and extends existing CSS modules:
+    • Dashboard.css   → Layout shell, sidebar, topbar, content
+    • KPIStyles.css   → KPI card grid & stacking
+    • ChartConfig.js  → Chart container heights & canvas sizing
+    • FilterUI.html   → Touch-friendly filters
+    • TableStyles.css → Mobile table columns & pagination
+    • TableStyles.css → Analytics table overrides
+
+  BREAKPOINT SYSTEM (mobile-first):
+    xs:  0–359px    — tiny phones (SE, mini)
+    sm:  360–599px  — standard phones
+    md:  600–767px  — large phones / phablets
+    lg:  768–1023px — tablets (portrait → landscape)
+    xl:  1024–1279px — small desktops / large tablets
+    2xl: 1280–1399px — standard desktops
+    3xl: 1400px+     — large desktops / wide monitors
+
+  TABLE OF CONTENTS:
+    1.  Responsive CSS custom properties
+    2.  Mobile-first base (xs/sm: 0–599px)
+    3.  Phablet adjustments (md: 600–767px)
+    4.  Tablet portrait (lg: 768–1023px)
+    5.  Tablet landscape / small desktop (xl: 1024–1279px)
+    6.  Standard desktop (2xl: 1280–1399px)
+    7.  Wide desktop (3xl: 1400px+)
+    8.  Dashboard layout overrides
+    9.  Sidebar responsive
+    10. Topbar responsive
+    11. KPI responsive stacking
+    12. Chart containers responsive
+    13. Table responsive (hide columns, compact, scroll)
+    14. Analytics tables responsive
+    15. Filter bar touch targets
+    16. Panel & content grid responsive
+    17. Touch utilities & interactions
+    18. Safe area insets (notch / home indicator)
+    19. Print media
+    20. Accessibility & reduced-motion
+
+  Load order: AFTER Dashboard.css, KPIStyles.css, TableStyles.css,
+              ChartConfig.js styles, FilterUI styles.
+  ════════════════════════════════════════════════════════════════
+*/
+
+
+/* ════════════════════════════════════════════════
+   1. RESPONSIVE CSS CUSTOM PROPERTIES
+   Root token overrides cascade down to all modules
+   ════════════════════════════════════════════════ */
+
+:root {
+  /* ── Mobile viewport helpers ── */
+  --mobile-topbar-height:    52px;
+  --mobile-bottom-bar:       0px;    /* updated by JS if bottom nav added */
+  --mobile-content-padding:  12px;
+  --tablet-content-padding:  20px;
+  --desktop-content-padding: 28px;
+
+  /* ── Touch minimum hit targets (WCAG 2.5.8) ── */
+  --touch-min:  44px;
+  --touch-sm:   36px;
+
+  /* ── Chart height scale ── */
+  --chart-h-mobile:   200px;
+  --chart-h-phablet:  240px;
+  --chart-h-tablet:   280px;
+  --chart-h-desktop:  320px;
+
+  /* ── Table compact ── */
+  --table-cell-p-mobile:  6px 8px;
+  --table-cell-p-tablet:  9px 11px;
+  --table-cell-p-desktop: 10px 14px;
+
+  /* ── Safe-area shims (overridden by @supports below) ── */
+  --safe-top:    0px;
+  --safe-right:  0px;
+  --safe-bottom: 0px;
+  --safe-left:   0px;
+}
+
+@supports (padding: env(safe-area-inset-top)) {
+  :root {
+    --safe-top:    env(safe-area-inset-top);
+    --safe-right:  env(safe-area-inset-right);
+    --safe-bottom: env(safe-area-inset-bottom);
+    --safe-left:   env(safe-area-inset-left);
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   2. MOBILE-FIRST BASE  (0 → 599px)
+   Base styles written for mobile; everything else
+   is a progressive enhancement.
+   ════════════════════════════════════════════════ */
+
+/* ── App shell: full height, no overflow ── */
+.app-shell {
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Sidebar: off-canvas by default ── */
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 280px;         /* wider than desktop 240px — easier to tap */
+  height: 100dvh;
+  transform: translateX(-100%);
+  transition: transform 380ms cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 50;
+  will-change: transform;
+  padding-bottom: var(--safe-bottom);
+}
+
+.sidebar--open {
+  transform: translateX(0);
+  box-shadow: 6px 0 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Sidebar close button: visible on mobile */
+.sidebar__close {
+  display: flex;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Overlay: full-bleed backdrop ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 40;
+  opacity: 0;
+  transition: opacity 280ms ease;
+  touch-action: none;       /* prevent scroll bleed */
+}
+
+.sidebar-overlay.active {
+  display: block;
+  opacity: 1;
+}
+
+/* ── Main area: flex column, full width ── */
+.main-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+}
+
+/* ── Topbar: compact on mobile ── */
+.topbar {
+  height: var(--mobile-topbar-height);
+  padding: 0 var(--mobile-content-padding);
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  padding-top: var(--safe-top);
+  z-index: 30;
+  flex-shrink: 0;
+}
+
+/* Hamburger: always visible on mobile */
+.topbar__hamburger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  border-radius: 8px;
+  flex-shrink: 0;
+  margin-left: calc(0px - var(--mobile-content-padding) + 4px);
+}
+
+/* Topbar title: truncate */
+.topbar__page-name {
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar__breadcrumb {
+  display: none;     /* hide breadcrumb on mobile */
+}
+
+/* Topbar actions: compact */
+.topbar__actions {
+  gap: 4px;
+}
+
+.topbar__actions .sync-indicator {
+  display: none;
+}
+
+.topbar__actions .period-selector__select {
+  height: var(--touch-sm);
+  max-width: 130px;
+  font-size: 0.75rem;
+  padding: 0 24px 0 8px;
+}
+
+/* Notification / action buttons: touch targets */
+.topbar__actions button,
+.topbar__actions .btn-icon {
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+/* ── Content area: scrollable, full width ── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--mobile-content-padding);
+  padding-bottom: calc(var(--mobile-content-padding) + var(--safe-bottom));
+  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-padding-top: 8px;
+}
+
+/* ── KPI grid: single column on tiny screens ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+/* Minimum useful: 2-col at 360px+ */
+@media (min-width: 360px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* KPI card: compact padding on mobile */
+.kpi-card {
+  padding: 14px 14px 12px;
+}
+
+.kpi-card__value {
+  font-size: 1.375rem;
+}
+
+/* Disable hover transform on touch (no hover on touch) */
+@media (hover: none) {
+  .kpi-card:hover {
+    transform: none;
+    box-shadow: var(--shadow-card, 0 1px 3px rgba(0,0,0,.06));
+  }
+
+  .kpi-card:active {
+    transform: scale(0.98);
+    transition: transform 80ms ease;
+  }
+}
+
+/* ── Content grid: single column ── */
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+/* ── Secondary column: stacked ── */
+.col-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Panels: reduced padding ── */
+.panel__header,
+.at-panel__header {
+  padding: 12px 14px 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.panel__chart-area {
+  height: var(--chart-h-mobile);
+  padding: 10px 12px 12px;
+}
+
+/* ── Chart canvas: constrained height ── */
+.chart-wrap,
+.chart-container,
+[data-chart-wrap] {
+  position: relative;
+  width: 100%;
+  height: var(--chart-h-mobile);
+  min-height: var(--chart-h-mobile);
+  max-height: var(--chart-h-mobile);
+  overflow: hidden;
+}
+
+.chart-wrap canvas,
+.chart-container canvas,
+[data-chart-wrap] canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: var(--chart-h-mobile);
+}
+
+/* ── Data tables (Dashboard.css base table) ── */
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 0 0 var(--radius-md, 10px) var(--radius-md, 10px);
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--table-cell-p-mobile);
+  font-size: 0.8rem;
+}
+
+/* Hide non-critical columns on mobile */
+.data-table .col-hide-mobile,
+.data-table th.col-hide-mobile,
+.data-table td.col-hide-mobile {
+  display: none;
+}
+
+/* ── Analytics tables ── */
+.at-table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: none;          /* let page scroll on mobile, not table */
+}
+
+.at-table th,
+.at-table td {
+  padding: var(--table-cell-p-mobile);
+  font-size: 0.79rem;
+}
+
+/* Hide lower-priority columns */
+.at-col--hide-mobile {
+  display: none !important;
+}
+
+/* ── Pagination: compact ── */
+.at-pagination {
+  padding: 8px 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.at-pagination__info {
+  font-size: 0.71rem;
+  width: 100%;
+  text-align: center;
+}
+
+.at-pagination__controls {
+  width: 100%;
+  justify-content: center;
+}
+
+.at-page-btn {
+  min-width: 34px;
+  height: 34px;
+  font-size: 0.8rem;
+}
+
+/* ── Filter bar: touch-friendly ── */
+.filter-bar {
+  padding: 8px var(--mobile-content-padding);
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-bar__label {
+  display: none;
+}
+
+.filter-bar__filters {
+  order: 1;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filter-bar__actions {
+  order: 2;
+  width: 100%;
+  justify-content: flex-end;
+  margin-left: 0;
+}
+
+/* Filter selects: full touch target */
+.filter-select {
+  height: var(--touch-sm);
+  font-size: 0.78rem;
+  min-height: var(--touch-sm);
+  touch-action: manipulation;
+}
+
+.filter-select-wrap {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Chips row: shown on mobile */
+.filter-bar__chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  order: 3;
+  width: 100%;
+  padding: 0 0 4px;
+}
+
+/* Inline chips: hide on mobile (use chips-row instead) */
+.filter-chips {
+  display: none;
+}
+
+/* ── Alert banner: stacked ── */
+.alert-banner {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Status list: compact ── */
+.status-list,
+.rank-list {
+  padding: 10px 14px;
+  gap: 10px;
+}
+
+/* ── Due items: compact ── */
+.due-item {
+  padding: 10px 14px;
+}
+
+/* ── Empty state ── */
+.at-empty {
+  padding: 36px 20px;
+}
+
+/* ── Toolbar search: full width ── */
+.at-toolbar {
+  padding: 8px 12px;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.at-search-wrap {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+
+.at-search {
+  height: var(--touch-sm);
+  font-size: 0.8rem;
+}
+
+.at-toolbar__right {
+  width: 100%;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+/* Toolbar buttons: touch targets */
+.at-btn {
+  height: var(--touch-sm);
+  min-height: var(--touch-sm);
+  touch-action: manipulation;
+  font-size: 0.78rem;
+}
+
+
+/* ════════════════════════════════════════════════
+   3. PHABLET / LARGE PHONE  (600px → 767px)
+   ════════════════════════════════════════════════ */
+
+@media (min-width: 600px) {
+  :root {
+    --mobile-topbar-height: 56px;
+  }
+
+  .content {
+    padding: var(--tablet-content-padding);
+    gap: 16px;
+    padding-bottom: calc(var(--tablet-content-padding) + var(--safe-bottom));
+  }
+
+  .topbar {
+    padding: 0 var(--tablet-content-padding);
+    padding-top: var(--safe-top);
+  }
+
+  .topbar__breadcrumb {
+    display: block;
+  }
+
+  .topbar__actions .sync-indicator {
+    display: flex;
+  }
+
+  .topbar__actions .period-selector__select {
+    max-width: 160px;
+  }
+
+  /* KPI: 2-column always */
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .kpi-card {
+    padding: 16px 16px 14px;
+  }
+
+  .kpi-card__value {
+    font-size: 1.5rem;
+  }
+
+  /* Content grid: still single column */
+  .content-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Secondary: 2-col side by side */
+  .col-secondary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  /* Charts: taller */
+  .panel__chart-area,
+  .chart-wrap,
+  .chart-container,
+  [data-chart-wrap] {
+    height: var(--chart-h-phablet);
+    min-height: var(--chart-h-phablet);
+    max-height: var(--chart-h-phablet);
+  }
+
+  /* Tables: slightly less compact */
+  .at-table th,
+  .at-table td,
+  .data-table th,
+  .data-table td {
+    padding: 8px 10px;
+    font-size: 0.8125rem;
+  }
+
+  /* Pagination: inline */
+  .at-pagination__info,
+  .at-pagination__controls {
+    width: auto;
+  }
+
+  /* Filter: allow inline wrapping */
+  .filter-bar__filters {
+    width: auto;
+    flex: 1;
+  }
+
+  .filter-bar__actions {
+    width: auto;
+    margin-left: auto;
+  }
+
+  .filter-bar__chips-row {
+    width: 100%;
+  }
+
+  /* Sidebar: slightly narrower overlay */
+  .sidebar {
+    width: 260px;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   4. TABLET PORTRAIT  (768px → 1023px)
+   Sidebar: overlay. Content: 1-col + side panels 2-col
+   ════════════════════════════════════════════════ */
+
+@media (min-width: 768px) {
+  :root {
+    --topbar-height:    60px;
+  }
+
+  .topbar {
+    height: 60px;
+    padding: 0 20px;
+    padding-top: var(--safe-top);
+  }
+
+  .topbar__hamburger {
+    display: flex;
+  }
+
+  .content {
+    padding: var(--tablet-content-padding);
+    gap: var(--tablet-content-padding);
+    padding-bottom: calc(var(--tablet-content-padding) + var(--safe-bottom));
+  }
+
+  /* Sidebar: still overlay on tablet portrait */
+  .sidebar {
+    width: var(--sidebar-width, 240px);
+  }
+
+  .sidebar__close {
+    display: flex;
+  }
+
+  /* KPI: 3-column on tablet */
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  :root {
+    --kpi-value-size:   1.6rem;
+    --kpi-card-padding: 18px 20px;
+  }
+
+  /* Content grid: primary + narrow secondary */
+  .content-grid {
+    grid-template-columns: 1fr 280px;
+    gap: 16px;
+    align-items: start;
+  }
+
+  /* Secondary: stacked single col */
+  .col-secondary {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Charts: tablet height */
+  .panel__chart-area,
+  .chart-wrap,
+  .chart-container,
+  [data-chart-wrap] {
+    height: var(--chart-h-tablet);
+    min-height: var(--chart-h-tablet);
+    max-height: var(--chart-h-tablet);
+  }
+
+  /* Tables: show some hidden columns */
+  .at-col--hide-mobile {
+    display: table-cell !important;
+  }
+
+  .at-col--hide-tablet {
+    display: none !important;
+  }
+
+  .at-table th,
+  .at-table td {
+    padding: var(--table-cell-p-tablet);
+    font-size: 0.8375rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: var(--table-cell-p-tablet);
+    font-size: 0.8375rem;
+  }
+
+  /* Restore col visibility */
+  .data-table .col-hide-mobile,
+  .data-table th.col-hide-mobile,
+  .data-table td.col-hide-mobile {
+    display: table-cell;
+  }
+
+  /* Filter bar: horizontal */
+  .filter-bar {
+    flex-wrap: nowrap;
+    align-items: center;
+    padding: 10px 16px;
+  }
+
+  .filter-bar__label {
+    display: flex;
+  }
+
+  .filter-bar__filters {
+    width: auto;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .filter-bar__chips-row {
+    display: none;
+  }
+
+  .filter-chips {
+    display: flex;
+  }
+
+  /* Analytics toolbar: single row */
+  .at-toolbar {
+    flex-wrap: nowrap;
+  }
+
+  .at-search-wrap {
+    width: 220px;
+    max-width: 220px;
+    flex: none;
+  }
+
+  .at-toolbar__right {
+    width: auto;
+  }
+
+  /* Pagination: restored */
+  .at-pagination {
+    padding: 10px 14px;
+  }
+
+  .at-pagination__info {
+    font-size: 0.76rem;
+    width: auto;
+    text-align: left;
+  }
+
+  /* Panel headers */
+  .panel__header,
+  .at-panel__header {
+    padding: 13px 16px 11px;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   5. TABLET LANDSCAPE / SMALL DESKTOP  (1024px → 1279px)
+   Sidebar: persistent (no overlay needed)
+   ════════════════════════════════════════════════ */
+
+@media (min-width: 1024px) {
+  /* Sidebar: persistent — part of flex row */
+  .sidebar {
+    position: relative;
+    transform: none !important;
+    width: 220px;
+    height: 100dvh;
+    flex-shrink: 0;
+    box-shadow: none !important;
+  }
+
+  .sidebar__close {
+    display: none;
+  }
+
+  .sidebar-overlay {
+    display: none !important;
+  }
+
+  /* Hamburger: hidden */
+  .topbar__hamburger {
+    display: none;
+  }
+
+  .topbar {
+    padding: 0 24px;
+    padding-top: var(--safe-top);
+  }
+
+  .content {
+    padding: var(--desktop-content-padding);
+    gap: 20px;
+    padding-bottom: var(--desktop-content-padding);
+  }
+
+  /* KPI: 3-col → shows all 6 cards in 3×2 */
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  :root {
+    --kpi-value-size:   1.7rem;
+    --kpi-card-padding: 20px 22px;
+  }
+
+  /* Content grid: primary + sidebar */
+  .content-grid {
+    grid-template-columns: 1fr 300px;
+    gap: 20px;
+  }
+
+  /* Charts: desktop height */
+  .panel__chart-area,
+  .chart-wrap,
+  .chart-container,
+  [data-chart-wrap] {
+    height: var(--chart-h-desktop);
+    min-height: var(--chart-h-desktop);
+    max-height: var(--chart-h-desktop);
+  }
+
+  /* Tables: full padding */
+  .at-table th,
+  .at-table td {
+    padding: var(--table-cell-p-desktop);
+    font-size: 0.8625rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: var(--table-cell-p-desktop);
+  }
+
+  /* Show all columns */
+  .at-col--hide-tablet {
+    display: table-cell !important;
+  }
+
+  /* Table max-height: scroll within table */
+  .at-table-container {
+    max-height: 520px;
+  }
+
+  /* Filter bar: full */
+  .filter-bar {
+    padding: 10px 20px;
+    gap: 8px;
+  }
+
+  .filter-select {
+    height: 34px;
+    font-size: 0.8125rem;
+  }
+
+  /* Analytics toolbar */
+  .at-search-wrap {
+    width: 260px;
+    max-width: 260px;
+  }
+
+  /* Panel */
+  .panel__header,
+  .at-panel__header {
+    padding: 14px 20px 12px;
+  }
+
+  /* Topbar: show breadcrumb */
+  .topbar__breadcrumb {
+    display: block;
+  }
+
+  /* Sync indicator */
+  .topbar__actions .sync-indicator {
+    display: flex;
+  }
+
+  .topbar__actions .period-selector__select {
+    max-width: 180px;
+    font-size: 0.8125rem;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   6. STANDARD DESKTOP  (1280px → 1399px)
+   ════════════════════════════════════════════════ */
+
+@media (min-width: 1280px) {
+  .sidebar {
+    width: 240px;
+  }
+
+  :root {
+    --sidebar-width: 240px;
+  }
+
+  .content {
+    padding: var(--desktop-content-padding);
+    gap: 22px;
+  }
+
+  /* KPI: can go 4 or 6 columns */
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  :root {
+    --kpi-value-size:   1.85rem;
+    --kpi-card-padding: 22px 24px;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr 320px;
+    gap: 22px;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   7. WIDE DESKTOP  (1400px+)
+   ════════════════════════════════════════════════ */
+
+@media (min-width: 1400px) {
+  .content {
+    padding: 32px;
+    gap: 24px;
+  }
+
+  .kpi-grid {
+    gap: 18px;
+  }
+
+  :root {
+    --kpi-card-padding: 24px 26px;
+    --kpi-value-size:   2rem;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr 360px;
+    gap: 24px;
+  }
+
+  /* Charts: taller on wide screens */
+  .panel__chart-area,
+  .chart-wrap,
+  .chart-container,
+  [data-chart-wrap] {
+    height: 360px;
+    min-height: 360px;
+    max-height: 360px;
+  }
+
+  .topbar {
+    padding: 0 32px;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   8. DASHBOARD LAYOUT OVERRIDES
+   Fine-tune the overall shell behaviour
+   ════════════════════════════════════════════════ */
+
+/* Force hardware acceleration for sidebar slide */
+.sidebar {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Prevent body scroll when sidebar is open */
+body.sidebar-is-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* Content area: momentum scroll on iOS */
+.content {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Scrollbar styling: narrower on small screens */
+@media (max-width: 767px) {
+  .content::-webkit-scrollbar {
+    width: 3px;
+  }
+
+  .at-table-container::-webkit-scrollbar {
+    height: 3px;
+    width: 3px;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   9. SIDEBAR RESPONSIVE DETAIL
+   Navigation items: larger hit targets on touch
+   ════════════════════════════════════════════════ */
+
+@media (max-width: 1023px) {
+  /* Nav items: taller for touch */
+  .nav-item {
+    min-height: 42px;
+    padding: 10px 14px;
+    border-radius: 8px;
+  }
+
+  .nav-item__icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* User footer: taller */
+  .sidebar-user {
+    padding: 12px 16px;
+    min-height: var(--touch-min);
+  }
+
+  .sidebar-user__logout {
+    min-width: var(--touch-min);
+    min-height: var(--touch-min);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+  }
+
+  /* Nav group label: more breathing room */
+  .nav-group__label {
+    padding: 16px 16px 4px;
+    font-size: 0.68rem;
+  }
+
+  /* Sidebar width on mobile: account for safe area */
+  .sidebar {
+    padding-left: var(--safe-left);
+  }
+
+  /* Brand area: safe top */
+  .sidebar__brand {
+    padding-top: calc(18px + var(--safe-top));
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   10. TOPBAR RESPONSIVE
+   ════════════════════════════════════════════════ */
+
+/* Notification button */
+@media (max-width: 599px) {
+  .topbar__notif-label {
+    display: none;
+  }
+}
+
+/* Period selector: full text on large enough screens */
+@media (min-width: 480px) {
+  .topbar__actions .period-selector__select {
+    max-width: 155px;
+  }
+}
+
+/* Action icon buttons: ensure touch targets */
+.topbar__actions .btn-icon,
+.topbar__actions button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+
+/* ════════════════════════════════════════════════
+   11. KPI RESPONSIVE STACKING — fine-grain control
+   Override KPIStyles.css for precise stacking
+   ════════════════════════════════════════════════ */
+
+/* xs: 1 column */
+@media (max-width: 359px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  :root {
+    --kpi-card-padding: 12px 14px;
+    --kpi-value-size:   1.3rem;
+    --kpi-label-size:   0.72rem;
+    --kpi-icon-size:    26px;
+  }
+}
+
+/* sm 360–599: 2-col */
+/* Already handled in section 2 */
+
+/* md 600–767: 2-col, slightly larger */
+@media (min-width: 600px) and (max-width: 767px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+/* lg 768–1023: 3-col */
+/* Already handled in section 4 */
+
+/* xl+: 3-col (matches 6 cards in 3×2) */
+/* Already handled in sections 5–7 */
+
+/* KPI card sub-line: clamp text */
+.kpi-card__sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* KPI trend badge: don't wrap */
+.kpi-card__trend,
+.kpi-badge {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* KPI value: allow slight shrink on small cards */
+.kpi-card__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ════════════════════════════════════════════════
+   12. CHART CONTAINERS RESPONSIVE
+   Ensures Chart.js canvas resizes correctly
+   ════════════════════════════════════════════════ */
+
+/* Wrapper must have explicit height for Chart.js */
+.chart-wrap,
+.chart-container,
+[data-chart-wrap],
+.panel__chart-area {
+  contain: layout size;          /* hint browser for perf */
+  display: block;
+  width: 100%;
+}
+
+/* Canvas: let Chart.js manage width, we control height */
+canvas[data-chart-id],
+.chartjs-canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Legend: wrap on mobile to prevent overflow */
+@media (max-width: 599px) {
+  .chartjs-size-monitor {
+    overflow: hidden;
+  }
+}
+
+/* Chart loading state */
+.chart-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface, #fff);
+  border-radius: inherit;
+  z-index: 5;
+}
+
+/* Full-width chart in primary column */
+.panel--chart-full .panel__chart-area {
+  height: auto;
+  min-height: var(--chart-h-mobile);
+}
+
+@media (min-width: 768px) {
+  .panel--chart-full .panel__chart-area {
+    min-height: var(--chart-h-tablet);
+  }
+}
+
+@media (min-width: 1024px) {
+  .panel--chart-full .panel__chart-area {
+    min-height: var(--chart-h-desktop);
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   13. TABLE RESPONSIVE — BASE (Dashboard.css tables)
+   ════════════════════════════════════════════════ */
+
+/* Horizontal scroll indicator (fade on right edge) */
+.table-container {
+  position: relative;
+}
+
+.table-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(to right, transparent, var(--bg-surface, #fff));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.table-container.is-scrollable::after {
+  opacity: 1;
+}
+
+/* Cell priority classes */
+.data-table td.priority-low,
+.data-table th.priority-low {
+  display: none;
+}
+
+@media (min-width: 600px) {
+  .data-table td.priority-low,
+  .data-table th.priority-low {
+    display: table-cell;
+  }
+}
+
+/* Numeric cells: mono font, right-aligned */
+.data-table td.cell-num {
+  font-family: var(--font-mono, 'DM Mono', monospace);
+  text-align: right;
+}
+
+/* Status badge: compact on mobile */
+@media (max-width: 599px) {
+  .badge,
+  .status-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   14. ANALYTICS TABLES RESPONSIVE (TableStyles.css)
+   ════════════════════════════════════════════════ */
+
+/* Usage bar: hide on very small screens */
+@media (max-width: 479px) {
+  .at-usage-bar {
+    display: none;
+  }
+
+  .at-bar-cell {
+    justify-content: flex-end;
+  }
+
+  .at-cell-primary {
+    max-width: 110px;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 767px) {
+  .at-usage-bar {
+    width: 36px;
+  }
+
+  .at-cell-primary {
+    max-width: 130px;
+  }
+}
+
+/* Rank badge: smaller on mobile */
+@media (max-width: 599px) {
+  .at-rank-badge {
+    width: 22px;
+    height: 22px;
+    font-size: 0.7rem;
+  }
+
+  .at-rank-badge--top {
+    width: 24px;
+    height: 24px;
+    font-size: 0.72rem;
+  }
+}
+
+/* Delta indicator: icon only on mobile */
+@media (max-width: 599px) {
+  .at-delta__text {
+    display: none;
+  }
+}
+
+/* Table section title: mobile */
+@media (max-width: 599px) {
+  .at-panel__title {
+    font-size: 0.85rem;
+  }
+
+  .at-panel__title-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+  }
+}
+
+/* Anomaly row: ensure visible on mobile */
+.at-row--anomaly td:first-child {
+  border-left-width: 3px;
+}
+
+@media (max-width: 599px) {
+  .at-row--anomaly td:first-child {
+    border-left-width: 2px;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   15. FILTER BAR TOUCH TARGETS
+   Touch: 44px minimum, no hover states on mobile
+   ════════════════════════════════════════════════ */
+
+/* Select wrapper: touch target enhancement */
+.filter-select-wrap {
+  position: relative;
+}
+
+/* Touch tap highlight removal */
+.filter-select,
+.filter-chip,
+.filter-reset-btn,
+.filter-share-btn {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Filter select: min touch height */
+@media (hover: none) {
+  .filter-select {
+    min-height: var(--touch-sm);
+    font-size: 16px;  /* prevents iOS zoom on focus */
+  }
+
+  .filter-select:focus {
+    font-size: 16px;
+  }
+}
+
+/* Reset/share buttons: touch targets */
+.filter-reset-btn,
+.filter-share-btn {
+  min-height: var(--touch-sm);
+  min-width: var(--touch-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  touch-action: manipulation;
+}
+
+/* Active chip: touch-friendly remove button */
+.filter-chip__remove {
+  min-width: 20px;
+  min-height: 20px;
+}
+
+/* Filter collapse button (mobile) */
+.filter-toggle-btn {
+  display: none;
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 599px) {
+  .filter-toggle-btn {
+    display: flex;
+  }
+}
+
+/* Collapsed filter state on mobile */
+.filter-bar.is-collapsed .filter-bar__filters {
+  display: none;
+}
+
+.filter-bar.is-collapsed .filter-bar__chips-row {
+  display: flex;
+}
+
+/* ── iOS font-size fix: prevents auto-zoom on select focus ── */
+@media (max-width: 767px) {
+  select,
+  input[type="text"],
+  input[type="search"],
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   16. PANEL & CONTENT GRID RESPONSIVE
+   ════════════════════════════════════════════════ */
+
+/* Panel: rounded corners only on non-full-width */
+@media (max-width: 359px) {
+  .panel,
+  .at-panel {
+    border-radius: 10px;
+  }
+}
+
+/* Panel actions: icon-only on tight spaces */
+@media (max-width: 479px) {
+  .panel__header-action-label,
+  .panel__export-label {
+    display: none;
+  }
+}
+
+/* Content section headers */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 599px) {
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Sticky filter bar */
+.filter-bar--sticky {
+  position: sticky;
+  top: var(--mobile-topbar-height);
+  z-index: 20;
+  background: var(--bg-surface, #fff);
+  border-bottom: 1px solid var(--border, #E5E3DF);
+}
+
+@media (min-width: 1024px) {
+  .filter-bar--sticky {
+    top: var(--topbar-height, 60px);
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   17. TOUCH UTILITIES & INTERACTIONS
+   ════════════════════════════════════════════════ */
+
+/* Disable hover animations on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  /* Prevent 300ms click delay */
+  * {
+    touch-action: manipulation;
+  }
+
+  /* Remove hover lift effects */
+  .kpi-card:hover,
+  .panel:hover,
+  .nav-item:hover {
+    transform: none;
+  }
+
+  /* Active state feedback instead */
+  .kpi-card:active {
+    transform: scale(0.985);
+    transition: transform 60ms ease;
+  }
+
+  .nav-item:active {
+    background: var(--bg-sidebar-hover, #27272A);
+  }
+
+  /* Remove tooltip triggers (no hover) */
+  [data-tooltip]:hover::after,
+  [data-tooltip]:hover::before {
+    display: none;
+  }
+
+  /* Table row: no hover bg */
+  .at-table tbody tr:hover,
+  .data-table tbody tr:hover {
+    background: transparent;
+  }
+
+  /* Show active state on table rows */
+  .at-table tbody tr:active,
+  .data-table tbody tr:active {
+    background: var(--bg-surface-alt, #FAFAF8);
+  }
+}
+
+/* Swipe-to-close sidebar support (handled by JS) */
+.sidebar-swipe-zone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 100%;
+  z-index: 35;
+}
+
+/* Smooth scroll for content */
+.content {
+  scroll-behavior: smooth;
+}
+
+/* Overscroll glow: prevent white flash */
+.content {
+  overscroll-behavior: contain;
+}
+
+
+/* ════════════════════════════════════════════════
+   18. SAFE AREA INSETS
+   iPhone notch, Dynamic Island, home indicator
+   ════════════════════════════════════════════════ */
+
+/* Sidebar: respect left safe area on landscape */
+@supports (padding: env(safe-area-inset-left)) {
+  @media (max-width: 1023px) {
+    .sidebar {
+      padding-left: max(0px, env(safe-area-inset-left));
+    }
+
+    .topbar {
+      padding-left: max(var(--mobile-content-padding), env(safe-area-inset-left));
+      padding-right: max(var(--mobile-content-padding), env(safe-area-inset-right));
+    }
+
+    .content {
+      padding-left: max(var(--mobile-content-padding), env(safe-area-inset-left));
+      padding-right: max(var(--mobile-content-padding), env(safe-area-inset-right));
+      padding-bottom: max(var(--mobile-content-padding), env(safe-area-inset-bottom));
+    }
+  }
+}
+
+/* Topbar: status bar height on mobile web */
+@supports (padding-top: env(safe-area-inset-top)) {
+  @media (max-width: 1023px) {
+    .topbar {
+      padding-top: max(0px, env(safe-area-inset-top));
+    }
+
+    /* Adjust topbar height to include safe area */
+    .main-area {
+      padding-top: 0;
+    }
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   19. PRINT MEDIA
+   ════════════════════════════════════════════════ */
+
+@media print {
+  /* Hide navigation & interactive UI */
+  .sidebar,
+  .topbar,
+  .sidebar-overlay,
+  .filter-bar,
+  .at-toolbar,
+  .at-pagination,
+  .topbar__hamburger,
+  .sidebar__close,
+  .btn-icon,
+  .alert-banner__close {
+    display: none !important;
+  }
+
+  /* Full-width content */
+  .app-shell {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .main-area {
+    overflow: visible;
+  }
+
+  .content {
+    overflow: visible;
+    padding: 0;
+  }
+
+  /* KPI: 3-col for print */
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* Content grid: full width */
+  .content-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Charts: fixed height for print */
+  .panel__chart-area,
+  .chart-wrap,
+  [data-chart-wrap] {
+    height: 240px !important;
+    max-height: 240px !important;
+  }
+
+  /* Tables: show all columns */
+  .at-col--hide-mobile,
+  .at-col--hide-tablet,
+  .col-hide-mobile {
+    display: table-cell !important;
+  }
+
+  /* Page breaks */
+  .panel,
+  .at-panel {
+    break-inside: avoid;
+  }
+
+  .kpi-section {
+    break-after: avoid;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   20. ACCESSIBILITY & REDUCED-MOTION
+   ════════════════════════════════════════════════ */
+
+/* Focus rings: visible on keyboard nav */
+.nav-item:focus-visible,
+.filter-select:focus-visible,
+.at-page-btn:focus-visible,
+.at-btn:focus-visible,
+.filter-reset-btn:focus-visible,
+.topbar__hamburger:focus-visible,
+.sidebar__close:focus-visible,
+.sidebar-user__logout:focus-visible {
+  outline: 2px solid var(--accent, #2563EB);
+  outline-offset: 2px;
+}
+
+/* Skip-to-content link */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 9999;
+  background: var(--accent, #2563EB);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 0 0 8px 8px;
+  font-weight: 600;
+  transition: top 0.1s;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* Reduced motion: remove all transitions/animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .sidebar {
+    transition: none !important;
+  }
+
+  .sidebar-overlay {
+    transition: none !important;
+  }
+}
+
+/* High contrast mode */
+@media (forced-colors: active) {
+  .sidebar {
+    border-right: 2px solid ButtonText;
+  }
+
+  .topbar {
+    border-bottom: 2px solid ButtonText;
+  }
+
+  .kpi-card {
+    border: 2px solid ButtonText;
+  }
+
+  .filter-chip {
+    border: 1px solid ButtonText;
+    background: transparent;
+  }
+}

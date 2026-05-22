@@ -1,0 +1,966 @@
+/*
+  ═══════════════════════════════════════════════════════════════
+  PrintStyles.css — UtilityManager PDF Print Stylesheet
+  PHASE 6B — PDF Export Engine
+  ═══════════════════════════════════════════════════════════════
+
+  ใช้สำหรับ:
+    - Render HTML → PDF ผ่าน Google Drive (HtmlService)
+    - พิมพ์จากเบราว์เซอร์ (@media print)
+    - Layout A4: 210 × 297 mm, margin 20 mm ทุกด้าน
+
+  TABLE OF CONTENTS:
+    1.  CSS Variables (Design Tokens)
+    2.  Reset & Base
+    3.  Thai Typography (Sarabun + DM Mono)
+    4.  A4 Page Layout
+    5.  Cover Page
+    6.  Page Header (repeating)
+    7.  Section Headers
+    8.  Tables (corporate data tables)
+    9.  KPI Cards (inline strip)
+    10. Status Badges
+    11. Signature Block
+    12. Page Footer (repeating)
+    13. Utilities (text-right, mono, cell-label)
+    14. Page Break Controls
+    15. Print Media Query (@media print)
+    16. Decorative Elements
+  ═══════════════════════════════════════════════════════════════
+*/
+
+<style>
+
+/* ════════════════════════════════════════════════════════════
+   1. CSS VARIABLES — Design Tokens
+   (ตรงกับ Dashboard.css เพื่อ visual consistency)
+   ════════════════════════════════════════════════════════════ */
+:root {
+  /* ── Brand colors ── */
+  --pdf-accent:          #2563EB;   /* ink blue */
+  --pdf-accent-dark:     #1D4ED8;
+  --pdf-accent-light:    #EFF6FF;
+  --pdf-accent-muted:    rgba(37, 99, 235, 0.10);
+
+  /* ── Neutral palette ── */
+  --pdf-bg:              #FFFFFF;
+  --pdf-bg-alt:          #FAFAF8;   /* warm off-white rows */
+  --pdf-surface:         #F5F4F1;   /* section bg */
+
+  /* ── Text ── */
+  --pdf-text-primary:    #111827;
+  --pdf-text-secondary:  #374151;
+  --pdf-text-muted:      #6B7280;
+  --pdf-text-light:      #9CA3AF;
+
+  /* ── Borders ── */
+  --pdf-border:          #E5E3DF;
+  --pdf-border-strong:   #D1CFC9;
+  --pdf-border-accent:   #BFDBFE;
+
+  /* ── Semantic colors ── */
+  --pdf-color-paid:      #16A34A;
+  --pdf-color-pending:   #D97706;
+  --pdf-color-overdue:   #DC2626;
+  --pdf-color-elec:      #1850A8;
+  --pdf-color-water:     #0B6E56;
+  --pdf-color-anomaly:   #7C3AED;
+
+  /* ── KPI chip backgrounds ── */
+  --pdf-kpi-blue-bg:     #EEF4FD;
+  --pdf-kpi-blue-text:   #1850A8;
+  --pdf-kpi-teal-bg:     #EBF7F3;
+  --pdf-kpi-teal-text:   #0B6E56;
+  --pdf-kpi-amber-bg:    #FFFBEB;
+  --pdf-kpi-amber-text:  #854D0E;
+  --pdf-kpi-red-bg:      #FEF2F2;
+  --pdf-kpi-red-text:    #991B1B;
+
+  /* ── Typography ── */
+  --pdf-font-ui:   'Sarabun', 'DM Sans', sans-serif;
+  --pdf-font-mono: 'DM Mono', 'Courier New', monospace;
+
+  /* ── A4 dimensions ── */
+  --pdf-page-width:   210mm;
+  --pdf-page-height:  297mm;
+  --pdf-margin:       20mm;
+  --pdf-content-width: 170mm;  /* 210 - 20*2 */
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   2. RESET & BASE
+   ════════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 10pt;           /* 10pt = standard A4 body size */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact; /* รักษาสีพื้นหลังเวลาพิมพ์ */
+}
+
+body {
+  font-family:  var(--pdf-font-ui);
+  font-size:    10pt;
+  line-height:  1.6;
+  color:        var(--pdf-text-primary);
+  background:   #E8E8E8;     /* สีพื้นหลัง browser preview */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Thai text: larger line-height สำหรับความชัดเจน */
+:lang(th), .thai {
+  font-family: 'Sarabun', sans-serif;
+  line-height: 1.75;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--pdf-text-primary);
+}
+
+a { color: var(--pdf-accent); text-decoration: none; }
+img { max-width: 100%; display: block; }
+ul, ol { list-style: none; }
+
+
+/* ════════════════════════════════════════════════════════════
+   3. THAI TYPOGRAPHY
+   ════════════════════════════════════════════════════════════ */
+
+/* ตัวเลขใช้ monospace เสมอ (tabular alignment) */
+.mono,
+td.mono,
+[data-mono] {
+  font-family: var(--pdf-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Thai paragraph text */
+p {
+  font-family: var(--pdf-font-ui);
+  line-height: 1.75;
+  color: var(--pdf-text-secondary);
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   4. A4 PAGE LAYOUT
+   Google Drive ใช้ .pdf-page เป็น page boundary
+   ════════════════════════════════════════════════════════════ */
+.pdf-page {
+  width:        var(--pdf-page-width);
+  min-height:   var(--pdf-page-height);
+  margin:       0 auto 12px auto;
+  padding:      var(--pdf-margin);
+  background:   var(--pdf-bg);
+  box-shadow:   0 2px 12px rgba(0,0,0,0.15);
+  position:     relative;
+  overflow:     hidden;
+
+  /* Page break ก่อนทุก .pdf-page ยกเว้นหน้าแรก */
+  page-break-before: always;
+  break-before: page;
+}
+
+/* หน้าแรกไม่ต้องมี break ก่อน */
+.pdf-page:first-child {
+  page-break-before: auto;
+  break-before: auto;
+}
+
+/* หน้า Cover: ไม่มี padding-top (ใช้ header bar แทน) */
+.pdf-page--cover {
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* หน้า Signature: justify เนื้อหา */
+.pdf-page--signature {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   5. COVER PAGE
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Header Color Bar ─────────────────────────────────────── */
+.cover__header-bar {
+  width:         100%;
+  height:        8mm;
+  background:    var(--pdf-accent);
+  flex-shrink:   0;
+  margin-bottom: 12mm;
+}
+
+/* ── Brand (Logo + Company) ───────────────────────────────── */
+.cover__brand {
+  display:     flex;
+  align-items: center;
+  gap:         12pt;
+  padding:     0 4mm;
+  margin-bottom: 10mm;
+}
+
+.cover__logo {
+  flex-shrink: 0;
+}
+
+.cover__logo-img {
+  width:  40pt;
+  height: 40pt;
+  object-fit: contain;
+}
+
+.cover__logo svg {
+  width:  40pt;
+  height: 40pt;
+}
+
+.cover__company-name {
+  font-size:   16pt;
+  font-weight: 700;
+  color:       var(--pdf-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.cover__company-sub {
+  font-size:   9pt;
+  color:       var(--pdf-text-muted);
+  margin-top:  2pt;
+}
+
+/* ── Title Block ──────────────────────────────────────────── */
+.cover__title-block {
+  flex:        1;
+  padding:     0 4mm;
+  margin-top:  8mm;
+}
+
+.cover__report-label {
+  font-family:    var(--pdf-font-mono);
+  font-size:      7.5pt;
+  font-weight:    500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color:          var(--pdf-accent);
+  margin-bottom:  6pt;
+}
+
+.cover__title {
+  font-size:   26pt;
+  font-weight: 700;
+  color:       var(--pdf-text-primary);
+  line-height: 1.2;
+  margin-bottom: 6pt;
+  letter-spacing: -0.02em;
+}
+
+.cover__subtitle {
+  font-size:   16pt;
+  font-weight: 400;
+  color:       var(--pdf-text-secondary);
+  margin-bottom: 10mm;
+}
+
+/* ── Period Badge ─────────────────────────────────────────── */
+.cover__period-badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           6pt;
+  background:    var(--pdf-accent-light);
+  border:        1pt solid var(--pdf-border-accent);
+  border-radius: 6pt;
+  padding:       5pt 12pt;
+  margin-bottom: 8pt;
+}
+
+.cover__period-text {
+  font-size:   10pt;
+  font-weight: 500;
+  color:       var(--pdf-accent-dark);
+}
+
+/* ── Meta Row (Meter Type + Site) ─────────────────────────── */
+.cover__meta-row {
+  display:  flex;
+  gap:      16pt;
+  margin-top: 8pt;
+}
+
+.cover__meta-item {
+  display:  flex;
+  flex-direction: column;
+  gap:      2pt;
+}
+
+.cover__meta-label {
+  font-size:  7.5pt;
+  color:      var(--pdf-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cover__meta-value {
+  font-size:   10pt;
+  font-weight: 500;
+  color:       var(--pdf-text-primary);
+}
+
+/* ── KPI Strip (Executive cover) ──────────────────────────── */
+.cover__kpi-strip {
+  display:       flex;
+  gap:           8pt;
+  margin-top:    10mm;
+  padding:       0 4mm;
+}
+
+.cover__kpi-item {
+  flex:          1;
+  text-align:    center;
+  padding:       10pt 8pt;
+  border-radius: 8pt;
+  border:        1pt solid transparent;
+}
+
+.cover__kpi-item--blue {
+  background: var(--pdf-kpi-blue-bg);
+  border-color: var(--pdf-border-accent);
+  color: var(--pdf-kpi-blue-text);
+}
+.cover__kpi-item--teal {
+  background: var(--pdf-kpi-teal-bg);
+  border-color: #B5DDD0;
+  color: var(--pdf-kpi-teal-text);
+}
+.cover__kpi-item--amber {
+  background: var(--pdf-kpi-amber-bg);
+  border-color: #FDE68A;
+  color: var(--pdf-kpi-amber-text);
+}
+
+.cover__kpi-value {
+  font-family: var(--pdf-font-mono);
+  font-size:   22pt;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.cover__kpi-label {
+  font-size:   8pt;
+  margin-top:  3pt;
+  opacity:     0.8;
+}
+
+/* ── Decorative Lines ─────────────────────────────────────── */
+.cover__deco {
+  padding: 0 4mm;
+  margin-top: auto;
+  padding-bottom: 8mm;
+}
+
+.cover__deco-line {
+  height:        2pt;
+  border-radius: 2pt;
+  margin-bottom: 3pt;
+}
+
+.cover__deco-line--1 {
+  background: var(--pdf-accent);
+  width:      100%;
+}
+
+.cover__deco-line--2 {
+  background: var(--pdf-border-accent);
+  width:      60%;
+}
+
+/* ── Cover Footer ─────────────────────────────────────────── */
+.cover__footer {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  padding:         6pt 4mm;
+  border-top:      1pt solid var(--pdf-border);
+  margin-top:      auto;
+  flex-shrink:     0;
+}
+
+.cover__footer-left,
+.cover__footer-right {
+  font-size:  8pt;
+  color:      var(--pdf-text-muted);
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   6. PAGE HEADER (repeating บนทุกหน้า content)
+   ════════════════════════════════════════════════════════════ */
+.page-header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     flex-end;
+  padding-bottom:  6pt;
+  border-bottom:   2pt solid var(--pdf-accent);
+  margin-bottom:   10pt;
+}
+
+.page-header__left {
+  display:     flex;
+  flex-direction: column;
+  gap:         2pt;
+}
+
+.page-header__title {
+  font-size:   11pt;
+  font-weight: 600;
+  color:       var(--pdf-text-primary);
+}
+
+.page-header__period {
+  font-size:   8.5pt;
+  color:       var(--pdf-text-muted);
+}
+
+.page-header__company {
+  font-family: var(--pdf-font-mono);
+  font-size:   7.5pt;
+  color:       var(--pdf-accent);
+  letter-spacing: 0.05em;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   7. SECTION HEADERS
+   ════════════════════════════════════════════════════════════ */
+.section-header {
+  display:     flex;
+  align-items: center;
+  gap:         8pt;
+  margin:      10pt 0 8pt 0;
+}
+
+.section-header__line {
+  flex:        1;
+  height:      1pt;
+  background:  var(--pdf-border-strong);
+}
+
+.section-header__title {
+  font-size:   10pt;
+  font-weight: 600;
+  color:       var(--pdf-text-secondary);
+  white-space: nowrap;
+  padding:     0 4pt;
+  letter-spacing: 0.02em;
+}
+
+/* Sub-section */
+.subsection-title {
+  font-size:   9.5pt;
+  font-weight: 600;
+  color:       var(--pdf-text-secondary);
+  margin:      8pt 0 5pt 0;
+  padding-left: 6pt;
+  border-left: 3pt solid var(--pdf-accent);
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   8. DATA TABLES
+   Corporate style — clean lines, zebra rows
+   ════════════════════════════════════════════════════════════ */
+.pdf-table {
+  width:           100%;
+  border-collapse: collapse;
+  margin:          6pt 0;
+  font-size:       9pt;
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+.pdf-table thead tr {
+  background:    var(--pdf-accent);
+  color:         #FFFFFF;
+}
+
+.pdf-table thead th {
+  padding:       6pt 8pt;
+  text-align:    left;
+  font-weight:   600;
+  font-size:     8.5pt;
+  letter-spacing: 0.03em;
+  white-space:   nowrap;
+}
+
+.pdf-table thead th.text-right {
+  text-align: right;
+}
+
+/* ── Body rows ──────────────────────────────────────────────── */
+.pdf-table tbody tr {
+  border-bottom: 0.75pt solid var(--pdf-border);
+}
+
+/* Zebra striping */
+.pdf-table tbody tr:nth-child(even) {
+  background: var(--pdf-bg-alt);
+}
+
+.pdf-table tbody tr:hover {
+  background: var(--pdf-accent-muted);
+}
+
+.pdf-table tbody td {
+  padding:    5pt 8pt;
+  color:      var(--pdf-text-secondary);
+  font-size:  9pt;
+  line-height: 1.5;
+}
+
+/* ── Totals row ──────────────────────────────────────────────── */
+.pdf-table tfoot tr {
+  background: var(--pdf-surface);
+  border-top: 1.5pt solid var(--pdf-border-strong);
+}
+
+.pdf-table tfoot td {
+  padding:    6pt 8pt;
+  font-weight: 600;
+  color:      var(--pdf-text-primary);
+  font-size:  9pt;
+}
+
+/* ── Highlighted table (ใช้กับ Executive summary) ─────────── */
+.pdf-table--highlight thead tr {
+  background: var(--pdf-accent-dark);
+}
+
+/* ── Compact table ──────────────────────────────────────────── */
+.pdf-table--compact thead th,
+.pdf-table--compact tbody td,
+.pdf-table--compact tfoot td {
+  padding: 4pt 6pt;
+  font-size: 8.5pt;
+}
+
+/* ── Bordered table (fully bordered) ──────────────────────── */
+.pdf-table--bordered,
+.pdf-table--bordered th,
+.pdf-table--bordered td {
+  border: 0.75pt solid var(--pdf-border-strong);
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   9. KPI CARDS (inline strip บน content pages)
+   ════════════════════════════════════════════════════════════ */
+.pdf-kpi-row {
+  display:  flex;
+  gap:      8pt;
+  margin:   8pt 0;
+}
+
+.pdf-kpi-card {
+  flex:          1;
+  padding:       10pt 10pt;
+  border-radius: 6pt;
+  border:        1pt solid transparent;
+  text-align:    center;
+}
+
+/* Color variants */
+.pdf-kpi-card--blue {
+  background:   var(--pdf-kpi-blue-bg);
+  border-color: var(--pdf-border-accent);
+  color:        var(--pdf-kpi-blue-text);
+}
+.pdf-kpi-card--teal {
+  background:   var(--pdf-kpi-teal-bg);
+  border-color: #B5DDD0;
+  color:        var(--pdf-kpi-teal-text);
+}
+.pdf-kpi-card--amber {
+  background:   var(--pdf-kpi-amber-bg);
+  border-color: #FDE68A;
+  color:        var(--pdf-kpi-amber-text);
+}
+.pdf-kpi-card--red {
+  background:   var(--pdf-kpi-red-bg);
+  border-color: #FECACA;
+  color:        var(--pdf-kpi-red-text);
+}
+.pdf-kpi-card--gray {
+  background:   var(--pdf-surface);
+  border-color: var(--pdf-border);
+  color:        var(--pdf-text-secondary);
+}
+
+.pdf-kpi-card__value {
+  font-family:  var(--pdf-font-mono);
+  font-size:    16pt;
+  font-weight:  700;
+  line-height:  1.1;
+  margin-bottom: 3pt;
+}
+
+.pdf-kpi-card__label {
+  font-size:  7.5pt;
+  opacity:    0.8;
+}
+
+.pdf-kpi-card__unit {
+  font-size:  7pt;
+  opacity:    0.6;
+  margin-top: 1pt;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   10. STATUS BADGES
+   ════════════════════════════════════════════════════════════ */
+.badge {
+  display:       inline-flex;
+  align-items:   center;
+  padding:       2pt 7pt;
+  border-radius: 20pt;
+  font-size:     7.5pt;
+  font-weight:   600;
+  letter-spacing: 0.04em;
+  white-space:   nowrap;
+  text-transform: uppercase;
+}
+
+.badge--paid      { color: var(--pdf-color-paid);    background: #F0FDF4; border: 0.5pt solid #86EFAC; }
+.badge--approved  { color: var(--pdf-accent);         background: var(--pdf-accent-light); border: 0.5pt solid var(--pdf-border-accent); }
+.badge--pending   { color: var(--pdf-color-pending);  background: var(--pdf-kpi-amber-bg); border: 0.5pt solid #FDE68A; }
+.badge--overdue   { color: var(--pdf-color-overdue);  background: var(--pdf-kpi-red-bg);   border: 0.5pt solid #FECACA; }
+.badge--cancelled { color: var(--pdf-text-muted);     background: var(--pdf-surface);      border: 0.5pt solid var(--pdf-border); }
+
+/* Meter type badges */
+.badge--elec  { color: var(--pdf-kpi-blue-text);  background: var(--pdf-kpi-blue-bg);  border: 0.5pt solid var(--pdf-border-accent); }
+.badge--water { color: var(--pdf-kpi-teal-text);  background: var(--pdf-kpi-teal-bg);  border: 0.5pt solid #B5DDD0; }
+
+/* Severity badges */
+.badge--high   { color: #991B1B; background: #FEF2F2; border: 0.5pt solid #FECACA; }
+.badge--medium { color: #854D0E; background: #FFFBEB; border: 0.5pt solid #FDE68A; }
+.badge--low    { color: #065F46; background: #F0FDF4; border: 0.5pt solid #86EFAC; }
+
+
+/* ════════════════════════════════════════════════════════════
+   11. SIGNATURE BLOCK
+   ════════════════════════════════════════════════════════════ */
+.signature-grid {
+  display:  grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:      16pt;
+  margin:   16pt 0;
+}
+
+.sig-block {
+  text-align: center;
+  padding:    8pt;
+}
+
+.sig-block__line {
+  width:         70%;
+  height:        0.75pt;
+  background:    var(--pdf-border-strong);
+  margin:        40pt auto 8pt auto; /* พื้นที่สำหรับเซ็นชื่อ */
+}
+
+.sig-block__title {
+  font-size:   9pt;
+  font-weight: 600;
+  color:       var(--pdf-text-primary);
+  margin-bottom: 4pt;
+}
+
+.sig-block__name {
+  font-size:   9pt;
+  color:       var(--pdf-text-muted);
+  margin-bottom: 3pt;
+}
+
+.sig-block__role {
+  font-size:   8pt;
+  color:       var(--pdf-text-muted);
+  margin-bottom: 5pt;
+}
+
+.sig-block__date {
+  font-size:   8.5pt;
+  color:       var(--pdf-text-secondary);
+}
+
+/* Disclaimer text */
+.report-disclaimer {
+  border-top:  1pt solid var(--pdf-border);
+  padding-top: 8pt;
+  margin-top:  12pt;
+}
+
+.report-disclaimer p {
+  font-size:   7.5pt;
+  color:       var(--pdf-text-muted);
+  text-align:  center;
+  line-height: 1.6;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   12. PAGE FOOTER (repeating ล่างทุกหน้า)
+   ════════════════════════════════════════════════════════════ */
+.page-footer {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  border-top:      1pt solid var(--pdf-border);
+  padding-top:     6pt;
+  margin-top:      auto;
+  padding-top:     8pt;
+}
+
+.page-footer__company {
+  font-size:  7.5pt;
+  color:      var(--pdf-text-muted);
+}
+
+.page-footer__generated {
+  font-size:  7.5pt;
+  color:      var(--pdf-text-light);
+  text-align: center;
+  flex:       1;
+}
+
+.page-footer__version {
+  font-family: var(--pdf-font-mono);
+  font-size:   7pt;
+  color:       var(--pdf-text-light);
+  letter-spacing: 0.04em;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   13. UTILITIES
+   ════════════════════════════════════════════════════════════ */
+
+/* Text alignment */
+.text-right  { text-align: right !important; }
+.text-center { text-align: center !important; }
+.text-left   { text-align: left !important; }
+
+/* Cell types */
+.cell-label {
+  color:      var(--pdf-text-muted);
+  font-size:  8.5pt;
+  white-space: nowrap;
+}
+
+.cell-amount {
+  font-family: var(--pdf-font-mono);
+  text-align:  right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell-bold {
+  font-weight: 600;
+  color:       var(--pdf-text-primary);
+}
+
+/* Spacing */
+.mt-4  { margin-top:    4pt; }
+.mt-8  { margin-top:    8pt; }
+.mt-12 { margin-top:   12pt; }
+.mb-4  { margin-bottom: 4pt; }
+.mb-8  { margin-bottom: 8pt; }
+
+/* Info box (note / remark) */
+.info-box {
+  background:    var(--pdf-accent-light);
+  border:        1pt solid var(--pdf-border-accent);
+  border-left:   3pt solid var(--pdf-accent);
+  border-radius: 4pt;
+  padding:       8pt 10pt;
+  margin:        8pt 0;
+  font-size:     8.5pt;
+  color:         var(--pdf-accent-dark);
+}
+
+/* Warning box */
+.warn-box {
+  background:  var(--pdf-kpi-amber-bg);
+  border:      1pt solid #FDE68A;
+  border-left: 3pt solid var(--pdf-color-pending);
+  border-radius: 4pt;
+  padding:     8pt 10pt;
+  margin:      8pt 0;
+  font-size:   8.5pt;
+  color:       var(--pdf-kpi-amber-text);
+}
+
+/* Divider */
+.divider {
+  border: none;
+  border-top: 1pt solid var(--pdf-border);
+  margin: 8pt 0;
+}
+
+/* Trend indicator inline */
+.trend-up   { color: var(--pdf-color-overdue); font-weight: 600; }
+.trend-down { color: var(--pdf-color-paid);    font-weight: 600; }
+.trend-flat { color: var(--pdf-text-muted);    font-weight: 400; }
+
+
+/* ════════════════════════════════════════════════════════════
+   14. PAGE BREAK CONTROLS
+   ════════════════════════════════════════════════════════════ */
+
+/* บังคับ page break ก่อน element */
+.page-break-before {
+  page-break-before: always;
+  break-before:      page;
+}
+
+/* บังคับ page break หลัง element */
+.page-break-after {
+  page-break-after: always;
+  break-after:      page;
+}
+
+/* ห้ามแบ่ง element ข้ามหน้า */
+.no-break {
+  page-break-inside: avoid;
+  break-inside:      avoid;
+}
+
+/* ให้ table อยู่ในหน้าเดียวถ้าเป็นไปได้ */
+.pdf-table {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* thead ต้องอยู่กับ row แรกเสมอ */
+.pdf-table thead {
+  display: table-header-group;
+}
+
+/* ป้องกัน orphan/widow rows */
+.pdf-table tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Section ไม่ควรแบ่งกลางหน้า ถ้าสั้นพอ */
+.section-header,
+.subsection-title {
+  page-break-after: avoid;
+  break-after:      avoid;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   15. PRINT MEDIA QUERY
+   สำหรับ print จาก browser โดยตรง
+   ════════════════════════════════════════════════════════════ */
+@media print {
+
+  /* ซ่อน browser UI artifacts */
+  body {
+    background: white;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* แต่ละ .pdf-page = หนึ่งหน้า A4 */
+  .pdf-page {
+    width:         210mm;
+    min-height:    297mm;
+    margin:        0;
+    padding:       20mm;
+    box-shadow:    none;
+    page-break-before: always;
+    break-before:  page;
+  }
+
+  .pdf-page:first-child {
+    page-break-before: auto;
+    break-before:  auto;
+  }
+
+  /* @page สำหรับ print */
+  @page {
+    size:    A4 portrait;
+    margin:  0; /* เราจัดการ margin เองใน .pdf-page */
+  }
+
+  /* รักษาสี background เวลาพิมพ์ */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust:         exact !important;
+    color-adjust:               exact !important;
+  }
+
+  /* ซ่อน elements ที่ไม่ต้องการพิมพ์ */
+  .no-print,
+  .sidebar,
+  .topbar,
+  nav,
+  button,
+  .btn {
+    display: none !important;
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   16. DECORATIVE ELEMENTS
+   ════════════════════════════════════════════════════════════ */
+
+/* Accent sidebar bar (ด้านซ้ายของ section) */
+.accent-bar {
+  display:       flex;
+  gap:           10pt;
+  align-items:   flex-start;
+}
+
+.accent-bar::before {
+  content:       '';
+  display:       block;
+  width:         3pt;
+  min-height:    20pt;
+  border-radius: 2pt;
+  background:    var(--pdf-accent);
+  flex-shrink:   0;
+  margin-top:    2pt;
+}
+
+/* Watermark (DRAFT) — uncommment เพื่อแสดง */
+/*
+.pdf-page::after {
+  content:     'DRAFT';
+  position:    absolute;
+  top:         50%;
+  left:        50%;
+  transform:   translate(-50%, -50%) rotate(-30deg);
+  font-size:   80pt;
+  font-weight: 700;
+  color:       rgba(0, 0, 0, 0.04);
+  pointer-events: none;
+  z-index:     0;
+  letter-spacing: 0.2em;
+}
+*/
+
+/* ── End of PrintStyles.css ─────────────────────────────── */
+</style>

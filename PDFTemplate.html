@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<!--
+  PDFTemplate.html — UtilityManager PDF Export Template
+  PHASE 6B — PDF Export Engine
+  ─────────────────────────────────────────────────────────────
+  ใช้กับ: HtmlService.createTemplateFromFile('PDFTemplate')
+  ถูกเรียกจาก: PDFExport.gs → _pdfRenderAndSave()
+  
+  รองรับ:
+    - ภาษาไทย (Sarabun font จาก Google Fonts)
+    - A4 layout — 210 × 297 mm
+    - Logo บริษัท (base64 หรือ SVG fallback)
+    - Multi-page automatic via CSS page-break
+    - Corporate clean design ตรงกับ Dashboard theme
+    - Executive Summary / Monthly / Yearly / Site report
+  
+  Template Variables (ส่งมาจาก PDFExport.gs):
+    data.reportType       — 'MONTHLY'|'YEARLY'|'EXECUTIVE'|'SITE'
+    data.reportTitle      — ชื่อรายงานหลัก
+    data.reportSubtitle   — ชื่อย่อ / ช่วงเวลา
+    data.period           — ช่วงเวลาที่รายงาน
+    data.generatedAt      — วันเวลาสร้าง (Thai format)
+    data.content          — reportResult object จาก ReportService
+    data.options          — export options
+    data.isExecutive      — boolean
+    data.meterTypeTh      — ประเภทมิเตอร์ภาษาไทย
+    data.siteName         — ชื่อสถานที่ (SITE report)
+    companyName           — 'UtilityManager'
+    companySub            — คำอธิบายระบบ
+    companyVersion        — version string
+    logoBase64            — data:image/...;base64,... หรือ null
+    fontUrl               — Google Fonts URL
+    fontFamily            — CSS font-family stack
+    generatedAt           — วันเวลาสร้าง
+  ─────────────────────────────────────────────────────────────
+-->
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><?= data.reportTitle ?> — <?= data.period ?></title>
+
+  <!-- Google Fonts: Sarabun (Thai) + DM Mono (numbers) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="<?= fontUrl ?>" rel="stylesheet" />
+
+  <!-- Print Styles (inline จาก PrintStyles.css) -->
+  <?!= pdfIncludeCss('PrintStyles') ?>
+
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+  PAGE 1 — COVER PAGE
+  ───────────────────────────────────────────────────────────── -->
+<div class="pdf-page pdf-page--cover">
+
+  <!-- ── Header Bar ─────────────────────────────────────── -->
+  <div class="cover__header-bar"></div>
+
+  <!-- ── Logo + Company Name ────────────────────────────── -->
+  <div class="cover__brand">
+    <div class="cover__logo">
+      <? if (logoBase64) { ?>
+        <!-- Logo จาก Drive File -->
+        <img src="<?= logoBase64 ?>" alt="Company Logo" class="cover__logo-img" />
+      <? } else { ?>
+        <!-- SVG Fallback Logo -->
+        <?!= pdfGetSvgLogo() ?>
+      <? } ?>
+    </div>
+    <div class="cover__company">
+      <div class="cover__company-name"><?= companyName ?></div>
+      <div class="cover__company-sub"><?= companySub ?></div>
+    </div>
+  </div>
+
+  <!-- ── Report Title Block ─────────────────────────────── -->
+  <div class="cover__title-block">
+    <div class="cover__report-label"><?= data.reportType ?> REPORT</div>
+    <h1 class="cover__title"><?= data.reportTitle ?></h1>
+    <h2 class="cover__subtitle"><?= data.reportSubtitle ?></h2>
+
+    <!-- ── Period Badge ───────────────────────────────── -->
+    <div class="cover__period-badge">
+      <span class="cover__period-icon">📅</span>
+      <span class="cover__period-text">ช่วงเวลา: <?= data.period ?></span>
+    </div>
+
+    <!-- ── Meter Type (ถ้าไม่ใช่ Executive) ─────────── -->
+    <? if (!data.isExecutive) { ?>
+    <div class="cover__meta-row">
+      <span class="cover__meta-item">
+        <span class="cover__meta-label">ประเภทมิเตอร์</span>
+        <span class="cover__meta-value"><?= data.meterTypeTh ?></span>
+      </span>
+      <? if (data.siteName) { ?>
+      <span class="cover__meta-item">
+        <span class="cover__meta-label">สถานที่</span>
+        <span class="cover__meta-value"><?= data.siteName ?></span>
+      </span>
+      <? } ?>
+    </div>
+    <? } ?>
+  </div>
+
+  <!-- ── Summary KPI Strip (Executive only) ────────────── -->
+  <? if (data.isExecutive && data.content && data.content.meta) { ?>
+  <div class="cover__kpi-strip">
+    <div class="cover__kpi-item cover__kpi-item--blue">
+      <div class="cover__kpi-value"><?= data.content.meta.total_sites || 0 ?></div>
+      <div class="cover__kpi-label">สถานที่ทั้งหมด</div>
+    </div>
+    <div class="cover__kpi-item cover__kpi-item--teal">
+      <div class="cover__kpi-value"><?= data.content.meta.total_bills || 0 ?></div>
+      <div class="cover__kpi-label">บิลทั้งหมด</div>
+    </div>
+    <div class="cover__kpi-item cover__kpi-item--amber">
+      <div class="cover__kpi-value"><?= data.content.meta.total_anomaly || 0 ?></div>
+      <div class="cover__kpi-label">รายการผิดปกติ</div>
+    </div>
+  </div>
+  <? } ?>
+
+  <!-- ── Decorative Lines ─────────────────────────────── -->
+  <div class="cover__deco">
+    <div class="cover__deco-line cover__deco-line--1"></div>
+    <div class="cover__deco-line cover__deco-line--2"></div>
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────────────── -->
+  <div class="cover__footer">
+    <div class="cover__footer-left">
+      <span>สร้างเมื่อ: <?= generatedAt ?></span>
+    </div>
+    <div class="cover__footer-right">
+      <span><?= companyName ?> <?= companyVersion ?></span>
+    </div>
+  </div>
+
+</div><!-- /cover page -->
+
+
+<!-- ═══════════════════════════════════════════════════════════
+  PAGE 2+ — REPORT CONTENT PAGES
+  ───────────────────────────────────────────────────────────── -->
+
+<!-- ── Executive Summary Content ─────────────────────────── -->
+<? if (data.reportType === 'EXECUTIVE') { ?>
+  <?!= _pdfRenderExecutiveSections(data) ?>
+
+<!-- ── Monthly / Yearly / Site Content ──────────────────── -->
+<? } else { ?>
+  <?!= _pdfRenderGeneralSections(data) ?>
+<? } ?>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+  LAST PAGE — SIGNATURE & APPROVAL BLOCK
+  ───────────────────────────────────────────────────────────── -->
+<div class="pdf-page pdf-page--signature">
+  <div class="section-header">
+    <div class="section-header__line"></div>
+    <h3 class="section-header__title">การรับรองและลงนาม</h3>
+    <div class="section-header__line"></div>
+  </div>
+
+  <div class="signature-grid">
+
+    <!-- ผู้จัดทำ -->
+    <div class="sig-block">
+      <div class="sig-block__line"></div>
+      <div class="sig-block__title">ผู้จัดทำรายงาน</div>
+      <div class="sig-block__name">……………………………………</div>
+      <div class="sig-block__role">เจ้าหน้าที่ระบบสาธารณูปโภค</div>
+      <div class="sig-block__date">วันที่ ……/……/………</div>
+    </div>
+
+    <!-- ผู้ตรวจสอบ -->
+    <div class="sig-block">
+      <div class="sig-block__line"></div>
+      <div class="sig-block__title">ผู้ตรวจสอบ</div>
+      <div class="sig-block__name">……………………………………</div>
+      <div class="sig-block__role">หัวหน้าฝ่ายการเงิน</div>
+      <div class="sig-block__date">วันที่ ……/……/………</div>
+    </div>
+
+    <!-- ผู้อนุมัติ -->
+    <div class="sig-block">
+      <div class="sig-block__line"></div>
+      <div class="sig-block__title">ผู้อนุมัติ</div>
+      <div class="sig-block__name">……………………………………</div>
+      <div class="sig-block__role">ผู้บริหาร / ผู้มีอำนาจลงนาม</div>
+      <div class="sig-block__date">วันที่ ……/……/………</div>
+    </div>
+
+  </div>
+
+  <!-- Disclaimer -->
+  <div class="report-disclaimer">
+    <p>
+      รายงานฉบับนี้จัดทำโดยระบบ <?= companyName ?> อัตโนมัติ
+      ข้อมูลที่แสดงอ้างอิงจากฐานข้อมูลระบบ ณ วันที่ <?= generatedAt ?>
+      กรุณาตรวจสอบความถูกต้องก่อนนำไปใช้งาน
+    </p>
+  </div>
+
+  <!-- Page Footer -->
+  <div class="page-footer">
+    <span class="page-footer__company"><?= companyName ?> — <?= companySub ?></span>
+    <span class="page-footer__version"><?= companyVersion ?></span>
+  </div>
+
+</div><!-- /signature page -->
+
+</body>
+</html>
+
+<script runat="server">
+// ════════════════════════════════════════════════════════════
+// SERVER-SIDE TEMPLATE HELPER FUNCTIONS
+// เรียกได้ภายใน <?!= ... ?> ใน template เท่านั้น
+// ════════════════════════════════════════════════════════════
+
+/**
+ * Render Executive Summary sections (หลาย section)
+ * @param {Object} data — template data
+ * @returns {string} HTML
+ */
+function _pdfRenderExecutiveSections(data) {
+  var html = '';
+  var content = data.content || {};
+  var meta    = content.meta || {};
+
+  // ── Section: ภาพรวม ──────────────────────────────────────
+  html += '<div class="pdf-page">';
+  html += _pdfPageHeader(data);
+  html += '<div class="section-header">';
+  html += '<div class="section-header__line"></div>';
+  html += '<h3 class="section-header__title">ภาพรวมการใช้สาธารณูปโภค</h3>';
+  html += '<div class="section-header__line"></div>';
+  html += '</div>';
+
+  // KPI Summary Table
+  html += '<table class="pdf-table pdf-table--highlight">';
+  html += '<thead><tr>';
+  html += '<th>รายการ</th><th class="text-right">จำนวน</th><th class="text-right">หน่วย</th>';
+  html += '</tr></thead>';
+  html += '<tbody>';
+  html += _pdfTableRow(['จำนวนสถานที่ทั้งหมด', meta.total_sites || 0, 'แห่ง']);
+  html += _pdfTableRow(['จำนวนบิลทั้งหมด',     meta.total_bills || 0, 'รายการ']);
+  html += _pdfTableRow(['รายการผิดปกติ',        meta.total_anomaly || 0, 'รายการ']);
+  html += _pdfTableRow(['ระยะเวลาที่ครอบคลุม', data.period, '']);
+  html += '</tbody></table>';
+
+  html += _pdfPageFooter(data);
+  html += '</div>'; // /pdf-page
+
+  return html;
+}
+
+
+/**
+ * Render General report sections (Monthly / Yearly / Site)
+ * @param {Object} data — template data
+ * @returns {string} HTML
+ */
+function _pdfRenderGeneralSections(data) {
+  var html    = '';
+  var content = data.content || {};
+  var meta    = content.meta || {};
+
+  // ── Page: ข้อมูลสรุป ──────────────────────────────────────
+  html += '<div class="pdf-page">';
+  html += _pdfPageHeader(data);
+
+  // Section header
+  html += '<div class="section-header">';
+  html += '<div class="section-header__line"></div>';
+  html += '<h3 class="section-header__title">สรุปข้อมูลรายงาน</h3>';
+  html += '<div class="section-header__line"></div>';
+  html += '</div>';
+
+  // Info table
+  html += '<table class="pdf-table">';
+  html += '<thead><tr><th>รายการ</th><th class="text-right">ข้อมูล</th></tr></thead>';
+  html += '<tbody>';
+  if (data.options && data.options.year)  html += _pdfTableRow2(['ปีงบประมาณ', data.options.year + 543]);
+  if (data.options && data.options.month) html += _pdfTableRow2(['เดือน', data.reportSubtitle]);
+  html += _pdfTableRow2(['ประเภทมิเตอร์', data.meterTypeTh]);
+  if (data.siteName)                      html += _pdfTableRow2(['สถานที่', data.siteName]);
+  if (meta.bill_count !== undefined)      html += _pdfTableRow2(['จำนวนบิล', meta.bill_count + ' รายการ']);
+  if (meta.site_count !== undefined)      html += _pdfTableRow2(['จำนวนสถานที่', meta.site_count + ' แห่ง']);
+  if (meta.meter_count !== undefined)     html += _pdfTableRow2(['จำนวนมิเตอร์', meta.meter_count + ' เครื่อง']);
+  html += '</tbody></table>';
+
+  html += _pdfPageFooter(data);
+  html += '</div>'; // /pdf-page
+
+  return html;
+}
+
+
+/**
+ * สร้าง page header (repeating header บนทุกหน้า)
+ * @param {Object} data
+ * @returns {string} HTML
+ */
+function _pdfPageHeader(data) {
+  return '<div class="page-header">' +
+    '<div class="page-header__left">' +
+      '<span class="page-header__title">' + data.reportTitle + '</span>' +
+      '<span class="page-header__period">' + data.period + '</span>' +
+    '</div>' +
+    '<div class="page-header__right">' +
+      '<span class="page-header__company">' + companyName + '</span>' +
+    '</div>' +
+  '</div>';
+}
+
+
+/**
+ * สร้าง page footer (repeating footer ล่างทุกหน้า)
+ * @param {Object} data
+ * @returns {string} HTML
+ */
+function _pdfPageFooter(data) {
+  return '<div class="page-footer">' +
+    '<span class="page-footer__company">' + companyName + ' — ' + companySub + '</span>' +
+    '<span class="page-footer__generated">สร้างเมื่อ: ' + generatedAt + '</span>' +
+    '<span class="page-footer__version">' + companyVersion + '</span>' +
+  '</div>';
+}
+
+
+/**
+ * สร้าง table row 3 columns
+ * @param {Array} cells — [col1, col2, col3]
+ * @returns {string} <tr>...</tr>
+ */
+function _pdfTableRow(cells) {
+  return '<tr>' +
+    '<td>' + (cells[0] || '') + '</td>' +
+    '<td class="text-right mono">' + (cells[1] || '') + '</td>' +
+    '<td class="text-right">' + (cells[2] || '') + '</td>' +
+  '</tr>';
+}
+
+
+/**
+ * สร้าง table row 2 columns (label / value)
+ * @param {Array} cells — [label, value]
+ * @returns {string} <tr>...</tr>
+ */
+function _pdfTableRow2(cells) {
+  return '<tr>' +
+    '<td class="cell-label">' + (cells[0] || '') + '</td>' +
+    '<td class="text-right mono">' + (cells[1] || '') + '</td>' +
+  '</tr>';
+}
+
+</script>
